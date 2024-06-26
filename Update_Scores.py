@@ -36,7 +36,7 @@ class Tournament:
 
         df = pd.DataFrame(temp_d).transpose()
 
-        df = df.dropna(how='any', subset=['Home team', 'Away team'])
+        df = df.dropna(how='all', subset=['Home team', 'Away team'])
 
         df = pd.merge(df, self.draw, how='left', left_on='Home team', right_on='Team').drop(columns='Team').rename(
             columns={'Who': 'Home person'})
