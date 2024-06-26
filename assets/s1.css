@@ -673,6 +673,7 @@ there.
         margin: 5% 2%;
     }
 
+
     /*h1, h2, h2, h4, h5, h6 {*/
     /*    margin-top: 0;*/
     /*    margin-bottom: 0;*/
@@ -732,7 +733,7 @@ there.
 
     h1 {
         /*font-size: 4em;*/
-        font-size: 12vw;
+        font-size: 9vw;
     }
 
     h2 {
