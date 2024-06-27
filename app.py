@@ -7,7 +7,7 @@ from dash_iconify import DashIconify
 import plotly.express as px
 from Update_Scores import Tournament
 
-print(pd.to_datetime('today'))
+# print(pd.to_datetime('today'))
 EC2024 = Tournament('EC')
 team_table = EC2024.team_table.sort_values(['PNT', 'GD'], ascending=False)
 person_table = EC2024.team_table.drop(columns='Team').groupby('Who').sum().reset_index().sort_values(['PNT', 'GD'],
@@ -67,7 +67,8 @@ app.layout = html.Div([
                     html.Div(
                         [
                             html.H1(
-                                'SWEEPSTAKELADS EUROS 2024',
+                                children='SWEEPSTAKELADS EUROS 2024',
+                                id='title',
                                 style={
                                     "textAlign": "center",
                                     'margin': '0 0 0 0',
@@ -83,59 +84,61 @@ app.layout = html.Div([
                 id="header",
                 className='row'),
             html.Div([
+                dcc.Interval(id='interval', interval=60 * 1000 * 5),
                 html.Div([
-                    dash_table.DataTable(
-                        id='team_table',  # Added an ID for the DataTable
-                        data=team_table.to_dict(
-                            'records'),
-                        columns=[{'name': col, 'id': col} for col in team_table.columns],
-                        style_header=header_style,
-                        style_data=data_style,
-                        style_data_conditional=people_colour_formats
-                    )
-                ],
-                    style={'margin': '2em 0 0'},
-                    className='five columns'),
-                html.Div([
-                    dash_table.DataTable(
-                        id='person_table',  # Added an ID for the second DataTable
-                        data=person_table.to_dict(
-                            'records'),
-                        columns=[{'name': col, 'id': col} for col in person_table.columns],
-                        style_header=header_style,
-                        style_data=data_style,
-                        style_data_conditional=people_colour_formats
+                    html.Div([
+                        dash_table.DataTable(
+                            id='team_table',  # Added an ID for the DataTable
+                            # data=team_table.to_dict('records'),
+                            columns=[{'name': col, 'id': col} for col in team_table.columns],
+                            style_header=header_style,
+                            style_data=data_style,
+                            style_data_conditional=people_colour_formats
+                        )
+                    ],
+                        style={'margin': '2em 0 0'},
+                        className='five columns'),
+                    html.Div([
+                        dash_table.DataTable(
+                            id='person_table',  # Added an ID for the second DataTable
+                            # data=person_table.to_dict('records'),
+                            columns=[{'name': col, 'id': col} for col in person_table.columns],
+                            style_header=header_style,
+                            style_data=data_style,
+                            style_data_conditional=people_colour_formats
 
+                        )
+                    ],
+                        style={'margin': '2em 0 0'},
+                        className='five columns body'
                     )
                 ],
+                    id="top_two_tables",
+                    className="row",
                     style={'margin': '2em 0 0'},
-                    className='five columns body'
-                )
-            ],
-                id="top_two_tables",
-                className="row",
-                style={'margin': '2em 0 0'},
-            ),
-            html.Div([
+                ),
                 html.Div([
-                    dash_table.DataTable(
-                        id='fixtures_table',  # Added an ID for the second DataTable
-                        data=EC2024.fixtures.drop(columns=['Special']).to_dict('records'),
-                        columns=[{'name': col, 'id': col} for col in EC2024.fixtures.drop(columns=['Special']).columns],
-                        style_header=header_style,
-                        style_data=data_style,
-                        style_data_conditional=people_colour_formats
+                    html.Div([
+                        dash_table.DataTable(
+                            id='fixtures_table',  # Added an ID for the second DataTable
+                            # data=EC2024.fixtures.drop(columns=['Special']).to_dict('records'),
+                            columns=[{'name': col, 'id': col} for col in
+                                     EC2024.fixtures.drop(columns=['Special']).columns],
+                            style_header=header_style,
+                            style_data=data_style,
+                            style_data_conditional=people_colour_formats
 
+                        )
+                    ],
+                        style={'margin': '2em 0 0'},
+                        className='twelve columns body'
                     )
                 ],
+                    id="bottom_tables",
+                    className="row",
                     style={'margin': '2em 0 0'},
-                    className='twelve columns body'
-                )
-            ],
-                id="bottom_tables",
-                className="row",
-                style={'margin': '2em 0 0'},
-            ),
+                ),
+            ])
         ],
         id="mainContainer",
         className='main_container'
@@ -184,69 +187,30 @@ app.layout = html.Div([
             ),
         ]),
         html.P('© {} SWEEPSTAKELADS   |   website by Scott Tomlins'.format(pd.Timestamp.now().year)),
+        html.P(id='last_updated'),
     ],
         className='footer')
 ])
 
-# # def prettify_row(row):
-# #     return 0
-#
-# # @ app.callback(Output('title', 'children'),
-# #                Output('info', 'children'),
-# #                Output('bullets', 'children'),
-# #                [Input('main_graph', 'hoverData'),
-# #
-# #                 Input('main_graph', 'clickData')])
-#
-#
-# # def update_info(hoverData, clickData):
-# #     global df
-# #     global prevClickData
-# #     global newData
-# #
-# #     if clickData == prevClickData:
-# #         newData = hoverData
-# #     else:
-# #         newData = clickData
-# #
-# #     x = newData['points'][0]['x']
-# #     x2 = newData['points'][0]['base']
-# #     y = newData['points'][0]['y']
-# #
-# #     row = df[(df['start'] <= x)
-# #              & (df['end'] >= x)
-# #              & (df['start'] <= x2)
-# #              & (df['end'] >= x2)
-# #              & (df['type'] == y)]
-# #
-# #     prevClickData = clickData
-# #
-# #     linkInfo = row['info'].values[0].split('|')
-# #
-# #     if len(linkInfo) == 1:
-# #         info = html.H6(
-# #             row['info'],
-# #             className="info_text"
-# #         )
-# #     else:
-# #         info = dcc.Link(
-# #             html.H6(
-# #                 linkInfo[0],
-# #                 className="info_text"
-# #             ),
-# #             target='_blank',
-# #             href=linkInfo[1],
-# #         ),
-# #
-# #     print(info)
-# #
-# #     return row['title'], \
-# #            info, \
-# #            [html.Li(i) for i in (row['bullet_1'],
-# #                                  row['bullet_2'],
-# #                                  row['bullet_3'],
-# #                                  row['bullet_4'],
-# #                                  row['bullet_5']) if i.any()]
+
+@app.callback(
+    Output("team_table", "data"),
+    Output("person_table", "data"),
+    Output("fixtures_table", "data"),
+    Output('last_updated', 'children'),
+    Input("interval", "n_intervals"),
+)
+def update_output(n):
+    print("RUNNING NOW {}".format(pd.to_datetime('today').floor('S')))
+    ec2024 = Tournament('EC')
+    teamtable = EC2024.team_table.sort_values(['PNT', 'GD'], ascending=False).to_dict('records')
+    
+    persontable = EC2024.team_table.drop(columns='Team').groupby('Who').sum().reset_index()
+    persontable = persontable.sort_values(['PNT', 'GD'], ascending=False).to_dict('records')
+
+    fixtures = EC2024.fixtures.drop(columns=['Special']).to_dict('records')
+
+    return teamtable, persontable, fixtures, "Last updated: {}".format(pd.to_datetime('today').floor('S'))
 
 
 # Main
