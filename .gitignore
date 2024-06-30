@@ -2,3 +2,4 @@ venv
 *.pyc
 .DS_Store
 .env
+assets/last_updated.txt
