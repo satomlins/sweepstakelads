@@ -201,16 +201,35 @@ app.layout = html.Div([
     Input("interval", "n_intervals"),
 )
 def update_output(n):
-    print("RUNNING NOW {}".format(pd.to_datetime('today').floor('S')))
-    ec2024 = Tournament('EC')
-    teamtable = EC2024.team_table.sort_values(['PNT', 'GD'], ascending=False).to_dict('records')
-    
-    persontable = EC2024.team_table.drop(columns='Team').groupby('Who').sum().reset_index()
-    persontable = persontable.sort_values(['PNT', 'GD'], ascending=False).to_dict('records')
+    with open("assets/last_updated.txt") as last_updated_file:
+        last_updated = pd.to_datetime(last_updated_file.read())
 
-    fixtures = EC2024.fixtures.drop(columns=['Special']).to_dict('records')
+    if last_updated < pd.to_datetime('today') - pd.Timedelta(minutes=1):
 
-    return teamtable, persontable, fixtures, "Last updated: {}".format(pd.to_datetime('today').floor('S'))
+        print("RUNNING NOW {}".format(pd.to_datetime('today').floor('s')))
+        ec2024 = Tournament('EC')
+        teamtable = ec2024.team_table.sort_values(['PNT', 'GD'], ascending=False)
+
+        persontable = ec2024.team_table.drop(columns='Team').groupby('Who').sum().reset_index()
+        persontable = persontable.sort_values(['PNT', 'GD'], ascending=False)
+
+        fixtures = ec2024.fixtures.drop(columns=['Special'])
+
+        with open("assets/last_updated.txt", 'w') as the_file:
+            last_updated = str(pd.to_datetime('today').floor('s'))
+            the_file.write(last_updated)
+
+        teamtable.to_csv('assets/teamtable.csv', index=False)
+        persontable.to_csv('assets/persontable.csv', index=False)
+        fixtures.to_csv('assets/fixtures.csv', index=False)
+
+    else:
+        teamtable = pd.read_csv('assets/teamtable.csv')
+        persontable = pd.read_csv('assets/persontable.csv')
+        fixtures = pd.read_csv('assets/fixtures.csv')
+
+    return teamtable.to_dict('records'), persontable.to_dict('records'), fixtures.to_dict(
+        'records'), "Last updated: {}".format(last_updated)
 
 
 # Main
