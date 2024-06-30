@@ -56,7 +56,7 @@ class Tournament:
     def setup_tables(self):
         # draw = pd.read_excel('assets/Euro_2024.xlsx', sheet_name='draw', engine='openpyxl')[['Who', 'Team']]
         draw = pd.read_csv('assets/Euro_2024.csv')
-        team_table = pd.DataFrame(columns=['Team', 'PL', 'W', 'D', 'L', 'GD', 'PNT', 'Who'])
+        team_table = pd.DataFrame(columns=['Team', 'PL', 'W', 'D', 'L', 'GD', 'GS', 'PNT', 'Who'])
         team_table[['Team', 'Who']] = draw[['Team', 'Who']]
         team_table.fillna(0, inplace=True)
 
@@ -107,6 +107,9 @@ class Tournament:
                 GD = abs(row['Home score'] - row['Away score'])
                 self.team_table.loc[self.team_table['Team'] == winner, 'GD'] += GD
                 self.team_table.loc[self.team_table['Team'] == loser, 'GD'] -= GD
+
+        self.team_table.loc[self.team_table['Team'] == row['Home team'], 'GS'] += row['Home score']
+        self.team_table.loc[self.team_table['Team'] == row['Away team'], 'GS'] += row['Away score']
 
         self.week_pnt[row.name + 1] = self.team_table[['Who', 'PNT']].groupby('Who').sum().sort_values(['Who'],
                                                                                                        ascending=False)

@@ -208,10 +208,10 @@ def update_output(n):
 
         print("RUNNING NOW {}".format(pd.to_datetime('today').floor('s')))
         ec2024 = Tournament('EC')
-        teamtable = ec2024.team_table.sort_values(['PNT', 'GD'], ascending=False)
+        teamtable = ec2024.team_table.sort_values(['PNT', 'GD', 'GS'], ascending=False)
 
         persontable = ec2024.team_table.drop(columns='Team').groupby('Who').sum().reset_index()
-        persontable = persontable.sort_values(['PNT', 'GD'], ascending=False)
+        persontable = persontable.sort_values(['PNT', 'GD', 'GS'], ascending=False)
 
         fixtures = ec2024.fixtures.drop(columns=['Special'])
 
