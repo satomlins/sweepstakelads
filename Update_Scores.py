@@ -8,6 +8,7 @@ class Tournament:
     def __init__(self, tournament):
 
         self.draw, self.team_table, self.week_pnt, self.week_gd = self.setup_tables()
+
         self.fixtures = self.setup_tournament(tournament)
 
         self.fixtures.apply(self.fill_table, axis=1)
@@ -50,6 +51,15 @@ class Tournament:
 
         df = df[['Date', 'KO', 'Home person', 'Home team', 'Home score', 'Away score', 'Away team', 'Away person',
                  'Round', 'Special', 'Status']]
+
+        in_df = pd.concat([df[['Home team', 'Status']].rename(columns={'Home team': 'Team'}),
+                         df[['Away team', 'Status']].rename(columns={'Away team': 'Team'})])
+
+        in_df = in_df[in_df['Status'] != 'Finished'].dropna(how='any', subset='Team').drop(columns='Status')
+
+        in_df['In'] = 'In'
+
+        self.team_table = self.team_table.merge(in_df, how='left').fillna('Out')
 
         return df
 

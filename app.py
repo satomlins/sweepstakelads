@@ -9,9 +9,7 @@ from Update_Scores import Tournament
 
 # print(pd.to_datetime('today'))
 EC2024 = Tournament('EC')
-team_table = EC2024.team_table.sort_values(['PNT', 'GD'], ascending=False)
-person_table = EC2024.team_table.drop(columns='Team').groupby('Who').sum().reset_index().sort_values(['PNT', 'GD'],
-                                                                                                     ascending=False)
+
 icon_size = 20
 icon_style = {'margin': '0.1rem 0.4rem 0'}
 
@@ -29,7 +27,13 @@ data_style = {
     'minWidth': '2em'
 }
 
-people_colour_formats = []
+people_colour_formats = [{
+    'if': {
+        'filter_query': "{In} = 'Out'",  # matching rows of a hidden column with the id, `id`
+        'column_id': 'Team'
+    },
+    'backgroundColor': '#960000'
+}]
 
 colours = {'Scott': '#ffadad',
            'Hugo': '#ffd6a5',
@@ -90,10 +94,10 @@ app.layout = html.Div([
                         dash_table.DataTable(
                             id='team_table',  # Added an ID for the DataTable
                             # data=team_table.to_dict('records'),
-                            columns=[{'name': col, 'id': col} for col in team_table.columns],
+                            columns=[{'name': col, 'id': col} for col in ['Team','PL','W','D','L','GD','GS','PNT','Who']],
                             style_header=header_style,
                             style_data=data_style,
-                            style_data_conditional=people_colour_formats
+                            style_data_conditional=people_colour_formats,
                         )
                     ],
                         style={'margin': '2em 0 0'},
@@ -102,7 +106,7 @@ app.layout = html.Div([
                         dash_table.DataTable(
                             id='person_table',  # Added an ID for the second DataTable
                             # data=person_table.to_dict('records'),
-                            columns=[{'name': col, 'id': col} for col in person_table.columns],
+                            columns=[{'name': col, 'id': col} for col in ['Who','PL','W','D','L','GD','GS','PNT']],
                             style_header=header_style,
                             style_data=data_style,
                             style_data_conditional=people_colour_formats
@@ -127,7 +131,6 @@ app.layout = html.Div([
                             style_header=header_style,
                             style_data=data_style,
                             style_data_conditional=people_colour_formats
-
                         )
                     ],
                         style={'margin': '2em 0 0'},
@@ -210,7 +213,7 @@ def update_output(n):
         ec2024 = Tournament('EC')
         teamtable = ec2024.team_table.sort_values(['PNT', 'GD', 'GS'], ascending=False)
 
-        persontable = ec2024.team_table.drop(columns='Team').groupby('Who').sum().reset_index()
+        persontable = ec2024.team_table[['Who','PL','W','D','L','GD','GS','PNT']].groupby('Who').sum().reset_index()
         persontable = persontable.sort_values(['PNT', 'GD', 'GS'], ascending=False)
 
         fixtures = ec2024.fixtures.drop(columns=['Special'])
