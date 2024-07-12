@@ -43,7 +43,10 @@ Date,KO,Home person,Home team,Home score,Away score,Away team,Away person,Round,
 2024-07-01,19:00,Scott,Portugal,3,0,Slovenia,Isaac,Last 16,Finished
 2024-07-02,16:00,Adrian,Romania,0,3,Netherlands,Alex,Last 16,Finished
 2024-07-02,19:00,Isaac,Austria,1,2,Turkey,Mary,Last 16,Finished
-2024-07-05,16:00,Brendan,Spain,,,Germany,Mary,Quarter finals,Future
-2024-07-05,19:00,Scott,Portugal,,,France,Adrian,Quarter finals,Future
-2024-07-06,16:00,Hugo,England,,,Switzerland,Hugo,Quarter finals,Future
-2024-07-06,19:00,Alex,Netherlands,,,Turkey,Mary,Quarter finals,Future
+2024-07-05,16:00,Brendan,Spain,2,1,Germany,Mary,Quarter finals,Finished
+2024-07-05,19:00,Scott,Portugal,3,5,France,Adrian,Quarter finals,Finished
+2024-07-06,16:00,Hugo,England,6,4,Switzerland,Hugo,Quarter finals,Finished
+2024-07-06,19:00,Alex,Netherlands,2,1,Turkey,Mary,Quarter finals,Finished
+2024-07-09,19:00,Brendan,Spain,2,1,France,Adrian,Semi finals,Finished
+2024-07-10,19:00,Alex,Netherlands,1,2,England,Hugo,Semi finals,Finished
+2024-07-14,19:00,Brendan,Spain,,,England,Hugo,Final,Future
