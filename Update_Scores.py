@@ -30,7 +30,7 @@ class Tournament:
                          'Home score': match['score']['fullTime']['home'],
                          'Away score': match['score']['fullTime']['away'],
                          'Round': match['stage'],
-                         'Special': '',
+                         'Duration': match['score']['duration'],
                          'Status': d['matches'][n]['status'],
                          'Date': pd.to_datetime(match['utcDate']).date(),
                          'KO': pd.to_datetime(match['utcDate']).strftime('%H:%M')}
@@ -47,10 +47,16 @@ class Tournament:
 
         df['Status'] = df['Status'].map({'FINISHED': 'Finished', 'TIMED': 'Future', 'IN_PLAY': 'Live'})
 
+        # df['NEW Status'] = df['Duration'].map({"EXTRA_TIME": ' - AET', "PENALTIES": ' - pens', 'REGULAR': ''})
+        #
+        # df['Status'] = ['{}{}'.format(x, y) for x, y in zip(df['Status'].values, df['NEW Status'].values)]
+        #
+        # df.drop(columns='NEW Status', inplace=True)
+
         df['Round'] = df['Round'].apply(lambda x: x.replace('_', ' ').capitalize())
 
         df = df[['Date', 'KO', 'Home person', 'Home team', 'Home score', 'Away score', 'Away team', 'Away person',
-                 'Round', 'Special', 'Status']]
+                 'Round', 'Duration', 'Status']]
 
         in_df = pd.concat([df[['Home team', 'Status']].rename(columns={'Home team': 'Team'}),
                          df[['Away team', 'Status']].rename(columns={'Away team': 'Team'})])
@@ -79,10 +85,10 @@ class Tournament:
         if row['Status'] != 'Finished':
             return
 
-        if row['Special'] == 'aet':
+        if row['Duration'] == 'EXTRA_TIME':
             win_score = 3
             lose_score = 1
-        elif row['Special'] == 'pen':
+        elif row['Duration'] == 'PENALTY_SHOOTOUT':
             win_score = 2
             lose_score = 1
         else:
@@ -113,7 +119,7 @@ class Tournament:
             self.team_table.loc[self.team_table['Team'] == loser, 'L'] += 1
             self.team_table.loc[self.team_table['Team'] == loser, 'PNT'] += lose_score
 
-            if row['Special'] != 'pen':
+            if row['Duration'] != 'PENALTY_SHOOTOUT':
                 GD = abs(row['Home score'] - row['Away score'])
                 self.team_table.loc[self.team_table['Team'] == winner, 'GD'] += GD
                 self.team_table.loc[self.team_table['Team'] == loser, 'GD'] -= GD

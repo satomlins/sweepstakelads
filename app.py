@@ -127,7 +127,7 @@ app.layout = html.Div([
                             id='fixtures_table',  # Added an ID for the second DataTable
                             # data=EC2024.fixtures.drop(columns=['Special']).to_dict('records'),
                             columns=[{'name': col, 'id': col} for col in
-                                     EC2024.fixtures.drop(columns=['Special']).columns],
+                                     EC2024.fixtures.drop(columns=['Duration']).columns],
                             style_header=header_style,
                             style_data=data_style,
                             style_data_conditional=people_colour_formats
@@ -216,7 +216,7 @@ def update_output(n):
         persontable = ec2024.team_table[['Who','PL','W','D','L','GD','GS','PNT']].groupby('Who').sum().reset_index()
         persontable = persontable.sort_values(['PNT', 'GD', 'GS'], ascending=False)
 
-        fixtures = ec2024.fixtures.drop(columns=['Special'])
+        fixtures = ec2024.fixtures.drop(columns=['Duration'])
 
         with open("assets/last_updated.txt", 'w') as the_file:
             last_updated = str(pd.to_datetime('today').floor('s'))
@@ -232,7 +232,7 @@ def update_output(n):
         fixtures = pd.read_csv('assets/fixtures.csv')
 
     return teamtable.to_dict('records'), persontable.to_dict('records'), fixtures.to_dict(
-        'records'), "Last updated: {}".format(last_updated)
+        'records'), "Last updated: {} GMT".format(last_updated)
 
 
 # Main
