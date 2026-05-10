@@ -7,7 +7,7 @@ from dash_iconify import DashIconify
 from tournament import get_data, load_draw
 
 # ---------------------------------------------------------------------------
-# Colours — one per participant
+# Constants
 # ---------------------------------------------------------------------------
 
 COLOURS = {
@@ -23,49 +23,86 @@ COLOURS = {
     "Jacob":   "#ffdac1",
 }
 
-# ---------------------------------------------------------------------------
-# Table style helpers
-# ---------------------------------------------------------------------------
-
 HEADER = {
-    "backgroundColor": "rgb(30, 30, 30)",
-    "color": "white",
-    "fontWeight": "bold",
-    "textAlign": "center",
+    "backgroundColor": "transparent",
+    "color": "var(--text-muted)",
+    "fontWeight": "600",
+    "fontSize": "11px",
+    "letterSpacing": "0.06em",
+    "textTransform": "uppercase",
+    "textAlign": "left",
+    "border": "none",
+    "borderBottom": "1px solid var(--border)",
+    "padding": "10px 12px",
+    "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
 }
 
 CELL = {
-    "backgroundColor": "rgb(50, 50, 50)",
-    "color": "white",
-    "textAlign": "center",
-    "minWidth": "2em",
+    "backgroundColor": "transparent",
+    "color": "var(--text)",
+    "textAlign": "left",
+    "border": "none",
+    "borderBottom": "1px solid var(--border)",
+    "padding": "10px 12px",
+    "fontSize": "13px",
+    "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
 }
 
-ICON_SIZE = 20
-ICON_STYLE = {"margin": "0.1rem 0.4rem 0"}
+NUMERIC_COLS = ["PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
+
+SECTION_LABEL = {
+    "fontSize": "12px",
+    "fontWeight": "600",
+    "letterSpacing": "0.08em",
+    "textTransform": "uppercase",
+    "color": "var(--text-faint)",
+    "textAlign": "left",
+    "margin": "0 0 12px",
+}
+
+GROUP_LABEL = {
+    "fontSize": "11px",
+    "fontWeight": "600",
+    "letterSpacing": "0.08em",
+    "textTransform": "uppercase",
+    "color": "var(--text-faint)",
+    "margin": "0 0 8px",
+}
 
 
-def _person_colour_rules(col: str) -> list[dict]:
-    """Conditional formatting rules that colour a column by participant name."""
+# ---------------------------------------------------------------------------
+# Style helpers
+# ---------------------------------------------------------------------------
+
+def _numeric_align(cols: list[str]) -> list[dict]:
+    return [
+        {
+            "if": {"column_id": c},
+            "textAlign": "right",
+            "fontFamily": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+            "fontVariantNumeric": "tabular-nums",
+        }
+        for c in cols
+    ]
+
+
+def _person_stripe_rules(col: str) -> list[dict]:
+    """Left-border stripe on owner rows (Who column)."""
     return [
         {
             "if": {
                 "filter_query": f'{{{col}}} = "{name}"',
                 "column_id": col,
             },
-            "backgroundColor": colour,
-            "color": "black",
+            "boxShadow": f"inset 8px 0 0 0 {colour}",
+            "paddingLeft": "20px",
         }
         for name, colour in COLOURS.items()
     ]
 
 
-def _team_colour_rules(draw: pd.DataFrame, col: str) -> list[dict]:
-    """
-    Conditional formatting rules that colour a team-name column by owner colour.
-    draw: DataFrame with columns [Who, Team].
-    col: the column id to colour.
-    """
+def _team_stripe_rules(draw: pd.DataFrame, col: str = "Team") -> list[dict]:
+    """Inset left-border stripe on team rows, coloured by owner."""
     if draw.empty:
         return []
     rules = []
@@ -81,33 +118,46 @@ def _team_colour_rules(draw: pd.DataFrame, col: str) -> list[dict]:
                     "filter_query": f'{{{col}}} = "{team}"',
                     "column_id": col,
                 },
-                "backgroundColor": colour,
-                "color": "black",
+                "boxShadow": f"inset 3px 0 0 0 {colour}",
             }
         )
     return rules
 
 
-def _eliminated_rule(col: str = "Team") -> dict:
+def _who_stripe_rules(draw: pd.DataFrame, col: str = "Who") -> list[dict]:
+    """Stripe the Who column in team table by owner colour."""
+    return _person_stripe_rules(col)
+
+
+def _eliminated_rule() -> dict:
     return {
         "if": {
             "filter_query": "{In} = 'Out'",
-            "column_id": col,
+            "column_id": "Team",
         },
-        "backgroundColor": "#960000",
-        "color": "white",
+        "color": "var(--eliminated)",
+        "textDecoration": "line-through",
     }
 
 
-def _make_table(table_id: str, columns: list[str], hidden: list[str] | None = None,
-                sort: bool = False) -> dash_table.DataTable:
+def _make_table(
+    table_id: str,
+    columns: list[str],
+    hidden: list[str] | None = None,
+    sort: bool = False,
+    compact: bool = False,
+) -> dash_table.DataTable:
     hidden = hidden or []
+    cell = {**CELL}
+    if compact:
+        cell = {**cell, "padding": "7px 10px"}
     return dash_table.DataTable(
         id=table_id,
         columns=[{"name": c, "id": c, "hideable": False} for c in columns],
         hidden_columns=hidden,
         style_header=HEADER,
-        style_data=CELL,
+        style_data=cell,
+        style_cell_conditional=_numeric_align(NUMERIC_COLS),
         sort_action="native" if sort else "none",
         style_table={"overflowX": "auto"},
     )
@@ -126,123 +176,163 @@ server = app.server
 
 app.layout = html.Div(
     [
-        # Header
-        html.Div(
-            html.H1(
-                "SWEEPSTAKELADS 2026",
-                style={"textAlign": "center", "color": "#00FFFF", "margin": "0"},
-            ),
-            style={"margin": "1em 0 0"},
-            className="twelve columns",
-        ),
-
         dcc.Interval(id="interval", interval=5 * 60 * 1000),
 
-        # Row 1 — Person leaderboard + Team table
-        html.Div(
+        html.Main(
             [
-                html.Div(
+                # Header strip
+                html.Header(
                     [
-                        html.H3("Leaderboard", style={"color": "white", "textAlign": "center"}),
-                        _make_table(
-                            "person-table",
-                            ["Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"],
+                        html.Div(
+                            [
+                                html.Span(
+                                    "SWEEPSTAKELADS",
+                                    style={
+                                        "fontSize": "22px",
+                                        "fontWeight": "600",
+                                        "letterSpacing": "-0.01em",
+                                        "color": "var(--text)",
+                                    },
+                                ),
+                                html.Span(
+                                    " · 2026 FIFA WORLD CUP",
+                                    style={
+                                        "fontSize": "12px",
+                                        "fontWeight": "600",
+                                        "letterSpacing": "0.08em",
+                                        "textTransform": "uppercase",
+                                        "color": "var(--text-faint)",
+                                        "marginLeft": "8px",
+                                    },
+                                ),
+                            ]
+                        ),
+                        html.Div(
+                            id="last-updated",
+                            style={
+                                "fontSize": "11px",
+                                "color": "var(--text-faint)",
+                                "fontFamily": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+                            },
                         ),
                     ],
-                    className="five columns",
-                    style={"marginTop": "2em"},
+                    className="site-header",
                 ),
+
+                # Row 1 — Leaderboard + Teams
                 html.Div(
                     [
-                        html.H3("Teams", style={"color": "white", "textAlign": "center"}),
-                        _make_table(
-                            "team-table",
-                            ["Team", "Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT", "In"],
-                            hidden=["In"],
-                            sort=True,
+                        html.Div(
+                            [
+                                html.H3("Leaderboard", style=SECTION_LABEL),
+                                _make_table(
+                                    "person-table",
+                                    ["Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"],
+                                ),
+                            ],
+                            className="five columns",
+                        ),
+                        html.Div(
+                            [
+                                html.H3("Teams", style=SECTION_LABEL),
+                                _make_table(
+                                    "team-table",
+                                    ["Team", "Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"],
+                                    sort=True,
+                                ),
+                            ],
+                            className="seven columns",
                         ),
                     ],
-                    className="seven columns",
-                    style={"marginTop": "2em"},
+                    className="row section-gap",
                 ),
-            ],
-            className="row",
-        ),
 
-        # Row 2 — Group tables
-        html.Div(
-            [
-                html.H3("Groups", style={"color": "white", "textAlign": "center"}),
-                html.Div(id="group-tables"),
-            ],
-            className="row",
-            style={"marginTop": "2em"},
-        ),
-
-        # Row 3 — Recent results + Upcoming fixtures
-        html.Div(
-            [
+                # Row 2 — Groups
                 html.Div(
                     [
-                        html.H3("Recent results", style={"color": "white", "textAlign": "center"}),
-                        _make_table(
-                            "recent-table",
-                            ["Date", "Time", "Home", "Score", "Away", "Stage"],
+                        html.H3("Groups", style=SECTION_LABEL),
+                        html.Div(id="group-tables", className="groups-grid"),
+                    ],
+                    className="section-gap",
+                ),
+
+                # Row 3 — Recent + Upcoming
+                html.Div(
+                    [
+                        html.Div(
+                            [
+                                html.H3("Recent results", style=SECTION_LABEL),
+                                _make_table(
+                                    "recent-table",
+                                    ["Date", "Time", "Home", "Score", "Away", "Stage"],
+                                ),
+                            ],
+                            className="six columns",
+                        ),
+                        html.Div(
+                            [
+                                html.H3("Upcoming fixtures", style=SECTION_LABEL),
+                                _make_table(
+                                    "upcoming-table",
+                                    ["Date", "Time", "Home", "Away", "Stage"],
+                                ),
+                            ],
+                            className="six columns",
                         ),
                     ],
-                    className="six columns",
-                    style={"marginTop": "2em"},
+                    className="row section-gap",
                 ),
+
+                # Row 4 — Knockout
                 html.Div(
                     [
-                        html.H3("Upcoming fixtures", style={"color": "white", "textAlign": "center"}),
+                        html.H3("Knockout stage", style=SECTION_LABEL),
                         _make_table(
-                            "upcoming-table",
-                            ["Date", "Time", "Home", "Away", "Stage"],
+                            "knockout-table",
+                            ["Stage", "Home", "Score", "Away"],
                         ),
                     ],
-                    className="six columns",
-                    style={"marginTop": "2em"},
+                    id="knockout-section",
+                    className="section-gap",
                 ),
-            ],
-            className="row",
-        ),
 
-        # Row 4 — Knockout stage
-        html.Div(
-            [
-                html.H3("Knockout stage", style={"color": "white", "textAlign": "center"}),
-                _make_table(
-                    "knockout-table",
-                    ["Stage", "Home", "Score", "Away"],
-                ),
-            ],
-            id="knockout-section",
-            className="row",
-            style={"marginTop": "2em"},
-        ),
-
-        # Footer
-        html.Div(
-            [
-                html.Div(
+                # Footer
+                html.Footer(
                     [
-                        dcc.Link(DashIconify(icon="bi:envelope", width=ICON_SIZE, style=ICON_STYLE),
-                                 href="mailto:scott@stomlins.com", target="_blank"),
-                        dcc.Link(DashIconify(icon="bi:linkedin", width=ICON_SIZE, style=ICON_STYLE),
-                                 href="https://www.linkedin.com/in/scotttomlins/", target="_blank"),
-                        dcc.Link(DashIconify(icon="bi:github", width=ICON_SIZE, style=ICON_STYLE),
-                                 href="https://github.com/satomlins/", target="_blank"),
-                    ]
+                        html.Span(
+                            f"© {pd.Timestamp.now().year} Sweepstakelads · website by Scott Tomlins",
+                            style={"color": "var(--text-faint)", "fontSize": "11px"},
+                        ),
+                        html.Div(
+                            [
+                                dcc.Link(
+                                    DashIconify(icon="bi:envelope", width=14),
+                                    href="mailto:scott@stomlins.com",
+                                    target="_blank",
+                                    className="footer-icon",
+                                ),
+                                dcc.Link(
+                                    DashIconify(icon="bi:linkedin", width=14),
+                                    href="https://www.linkedin.com/in/scotttomlins/",
+                                    target="_blank",
+                                    className="footer-icon",
+                                ),
+                                dcc.Link(
+                                    DashIconify(icon="bi:github", width=14),
+                                    href="https://github.com/satomlins/",
+                                    target="_blank",
+                                    className="footer-icon",
+                                ),
+                            ],
+                            style={"display": "flex", "gap": "12px", "alignItems": "center"},
+                        ),
+                    ],
+                    className="site-footer",
                 ),
-                html.P(f"© {pd.Timestamp.now().year} SWEEPSTAKELADS   |   website by Scott Tomlins"),
-                html.P(id="last-updated"),
             ],
-            className="footer",
         ),
     ],
     id="mainContainer",
-    className="main_container",
 )
 
 
@@ -275,70 +365,67 @@ def update_all(n):
     group_standings = data["group_standings"]
     fixtures = data["fixtures"]
 
-    # -- Person table formatting
-    person_fmt = _person_colour_rules("Who")
-
-    # -- Team table formatting
-    # Eliminated teams: red background on Team cell (checked first so owner colour wins for "In")
-    team_fmt = (
-        [_eliminated_rule("Team")]
-        + _team_colour_rules(draw, "Team")
-        + _person_colour_rules("Who")
+    # Person table: stripe Who column by owner colour
+    person_fmt = (
+        _numeric_align(NUMERIC_COLS)
+        + _person_stripe_rules("Who")
     )
 
-    # -- Group tables (12 mini-tables, 4 per row)
+    # Team table: eliminated rule, team stripe, Who stripe
+    team_fmt = (
+        _numeric_align(NUMERIC_COLS)
+        + [_eliminated_rule()]
+        + _team_stripe_rules(draw, "Team")
+        + _who_stripe_rules(draw, "Who")
+    )
+
+    # Group tables
     group_cols = ["Team", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
     group_children = []
-    groups_sorted = sorted(group_standings.keys())
-    rows_of_groups = [groups_sorted[i:i+3] for i in range(0, len(groups_sorted), 3)]
-
-    for row_groups in rows_of_groups:
-        row_divs = []
-        for g in row_groups:
-            gdf = group_standings[g]
-            gfmt = _team_colour_rules(draw, "Team")
-            row_divs.append(
-                html.Div(
-                    [
-                        html.H5(
-                            f"Group {g}",
-                            style={"color": "white", "textAlign": "center", "margin": "0.5em 0 0.2em"},
-                        ),
-                        dash_table.DataTable(
-                            data=gdf[group_cols].to_dict("records") if not gdf.empty else [],
-                            columns=[{"name": c, "id": c} for c in group_cols],
-                            style_header=HEADER,
-                            style_data=CELL,
-                            style_data_conditional=gfmt,
-                            style_table={"overflowX": "auto"},
-                        ),
-                    ],
-                    className="four columns",
-                )
-            )
+    for g in sorted(group_standings.keys()):
+        gdf = group_standings[g]
+        gfmt = (
+            _numeric_align(NUMERIC_COLS)
+            + _team_stripe_rules(draw, "Team")
+        )
+        cell = {**CELL, "padding": "7px 10px"}
         group_children.append(
-            html.Div(row_divs, className="row", style={"marginBottom": "1em"})
+            html.Div(
+                [
+                    html.P(f"Group {g}", style=GROUP_LABEL),
+                    dash_table.DataTable(
+                        data=gdf[group_cols].to_dict("records") if not gdf.empty else [],
+                        columns=[{"name": c, "id": c} for c in group_cols],
+                        style_header=HEADER,
+                        style_data=cell,
+                        style_cell_conditional=_numeric_align(NUMERIC_COLS),
+                        style_data_conditional=gfmt,
+                        style_table={"overflowX": "auto"},
+                    ),
+                ],
+                className="group-cell",
+            )
         )
 
-    # -- Recent results (last 10 finished, newest first)
+    # Recent results
     finished = fixtures[fixtures["Status"] == "Finished"].tail(10).iloc[::-1]
     recent_fmt = (
-        _team_colour_rules(draw, "Home")
-        + _team_colour_rules(draw, "Away")
+        _team_stripe_rules(draw, "Home")
+        + _team_stripe_rules(draw, "Away")
     )
 
-    # -- Upcoming fixtures (next 10)
+    # Upcoming fixtures
     upcoming = fixtures[fixtures["Status"] == "Upcoming"].head(10)
     upcoming_fmt = (
-        _team_colour_rules(draw, "Home")
-        + _team_colour_rules(draw, "Away")
+        _team_stripe_rules(draw, "Home")
+        + _team_stripe_rules(draw, "Away")
     )
 
-    # -- Knockout stage (all knockout matches)
+    # Knockout stage
     ko = fixtures[~fixtures["Stage"].str.startswith("Group", na=False)].copy()
     ko_fmt = (
-        _team_colour_rules(draw, "Home")
-        + _team_colour_rules(draw, "Away")
+        _team_stripe_rules(draw, "Home")
+        + _team_stripe_rules(draw, "Away")
     )
 
     return (
