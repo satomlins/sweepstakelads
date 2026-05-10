@@ -140,20 +140,78 @@ def _eliminated_rule() -> dict:
     }
 
 
+def _person_row_colour_rules() -> list[dict]:
+    """Colour entire row text by owner (no column_id = applies to all cells)."""
+    return [
+        {"if": {"filter_query": f'{{Who}} = "{name}"'}, "color": colour}
+        for name, colour in COLOURS.items()
+    ]
+
+
+def _team_row_colour_rules() -> list[dict]:
+    """Colour entire row text by Who column."""
+    return [
+        {"if": {"filter_query": f'{{Who}} = "{name}"'}, "color": colour}
+        for name, colour in COLOURS.items()
+    ]
+
+
+def _fixture_colour_rules(draw: pd.DataFrame) -> list[dict]:
+    """Colour Home and Away cells by team ownership."""
+    if draw.empty:
+        return []
+    rules = []
+    for _, row in draw.iterrows():
+        colour = COLOURS.get(row["Who"])
+        if not colour:
+            continue
+        for col in ("Home", "Away"):
+            rules.append({
+                "if": {"filter_query": f'{{{col}}} = "{row["Team"]}"', "column_id": col},
+                "color": colour,
+            })
+    return rules
+
+
+def _group_colour_rules(draw: pd.DataFrame) -> list[dict]:
+    """Colour Team cell text in group mini-tables by owner."""
+    if draw.empty:
+        return []
+    rules = []
+    for _, row in draw.iterrows():
+        colour = COLOURS.get(row["Who"])
+        if colour:
+            rules.append({
+                "if": {"filter_query": f'{{Team}} = "{row["Team"]}"', "column_id": "Team"},
+                "color": colour,
+            })
+    return rules
+
+
+def _owner_col_colour_rules(col: str) -> list[dict]:
+    """Colour an owner-name column by the owner's colour."""
+    return [
+        {"if": {"filter_query": f'{{{col}}} = "{name}"', "column_id": col}, "color": colour}
+        for name, colour in COLOURS.items()
+    ]
+
+
 def _make_table(
     table_id: str,
     columns: list[str],
     hidden: list[str] | None = None,
     sort: bool = False,
     compact: bool = False,
+    col_labels: dict | None = None,
 ) -> dash_table.DataTable:
     hidden = hidden or []
+    col_labels = col_labels or {}
     cell = {**CELL}
     if compact:
         cell = {**cell, "padding": "7px 10px"}
     return dash_table.DataTable(
         id=table_id,
-        columns=[{"name": c, "id": c, "hideable": False} for c in columns],
+        columns=[{"name": col_labels.get(c, c), "id": c, "hideable": False} for c in columns],
         hidden_columns=hidden,
         style_header=HEADER,
         style_data=cell,
@@ -230,7 +288,7 @@ app.layout = html.Div(
                                     ["Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"],
                                 ),
                             ],
-                            className="five columns",
+                            className="six columns",
                         ),
                         html.Div(
                             [
@@ -241,7 +299,7 @@ app.layout = html.Div(
                                     sort=True,
                                 ),
                             ],
-                            className="seven columns",
+                            className="six columns",
                         ),
                     ],
                     className="row section-gap",
@@ -256,7 +314,21 @@ app.layout = html.Div(
                     className="section-gap",
                 ),
 
-                # Row 3 — Recent + Upcoming
+                # Row 3 — Knockout
+                html.Div(
+                    [
+                        html.H3("Knockout stage", style=SECTION_LABEL),
+                        _make_table(
+                            "knockout-table",
+                            ["Stage", "HomeOwner", "Home", "Score", "Away", "AwayOwner"],
+                            col_labels={"HomeOwner": "", "AwayOwner": ""},
+                        ),
+                    ],
+                    id="knockout-section",
+                    className="section-gap",
+                ),
+
+                # Row 4 — Recent + Upcoming
                 html.Div(
                     [
                         html.Div(
@@ -264,7 +336,8 @@ app.layout = html.Div(
                                 html.H3("Recent results", style=SECTION_LABEL),
                                 _make_table(
                                     "recent-table",
-                                    ["Date", "Time", "Home", "Score", "Away", "Stage"],
+                                    ["Date", "Time", "HomeOwner", "Home", "Score", "Away", "AwayOwner", "Stage"],
+                                    col_labels={"HomeOwner": "", "AwayOwner": ""},
                                 ),
                             ],
                             className="six columns",
@@ -274,26 +347,14 @@ app.layout = html.Div(
                                 html.H3("Upcoming fixtures", style=SECTION_LABEL),
                                 _make_table(
                                     "upcoming-table",
-                                    ["Date", "Time", "Home", "Away", "Stage"],
+                                    ["Date", "Time", "HomeOwner", "Home", "Away", "AwayOwner", "Stage"],
+                                    col_labels={"HomeOwner": "", "AwayOwner": ""},
                                 ),
                             ],
                             className="six columns",
                         ),
                     ],
                     className="row section-gap",
-                ),
-
-                # Row 4 — Knockout
-                html.Div(
-                    [
-                        html.H3("Knockout stage", style=SECTION_LABEL),
-                        _make_table(
-                            "knockout-table",
-                            ["Stage", "Home", "Score", "Away"],
-                        ),
-                    ],
-                    id="knockout-section",
-                    className="section-gap",
                 ),
 
                 # Footer
@@ -365,30 +426,61 @@ def update_all(n):
     group_standings = data["group_standings"]
     fixtures = data["fixtures"]
 
-    # Person table: stripe Who column by owner colour
+    # Person table: stripe + full row text colour by owner
     person_fmt = (
         _numeric_align(NUMERIC_COLS)
         + _person_stripe_rules("Who")
+        + _person_row_colour_rules()
     )
 
-    # Team table: eliminated rule, team stripe, Who stripe
+    # Team table: row colour first, eliminated overrides Team cell last
     team_fmt = (
         _numeric_align(NUMERIC_COLS)
-        + [_eliminated_rule()]
         + _team_stripe_rules(draw, "Team")
         + _who_stripe_rules(draw, "Who")
+        + _team_row_colour_rules()
+        + [_eliminated_rule()]
     )
 
+    # Lookup: team name → owner name (for injecting owner columns)
+    team_to_owner = {} if draw.empty else dict(zip(draw["Team"], draw["Who"]))
+
+    def _add_owner_cols(df: pd.DataFrame, home_col: str = "Home", away_col: str = "Away") -> pd.DataFrame:
+        out = df.copy()
+        if home_col in out.columns:
+            out["HomeOwner"] = out[home_col].map(lambda t: team_to_owner.get(t, ""))
+        if away_col in out.columns:
+            out["AwayOwner"] = out[away_col].map(lambda t: team_to_owner.get(t, ""))
+        return out
+
     # Group tables
-    group_cols = ["Team", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
+    group_cols = ["Team", "Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
     group_children = []
     for g in sorted(group_standings.keys()):
         gdf = group_standings[g]
+        # Attach owner column
+        if not gdf.empty and not draw.empty:
+            gdf = gdf.merge(draw[["Team", "Who"]], on="Team", how="left")
+            gdf["Who"] = gdf["Who"].fillna("")
+        else:
+            gdf = gdf.copy()
+            gdf["Who"] = ""
         gfmt = (
             _numeric_align(NUMERIC_COLS)
             + _team_stripe_rules(draw, "Team")
+            + _group_colour_rules(draw)
+            + _owner_col_colour_rules("Who")
         )
-        cell = {**CELL, "padding": "7px 10px"}
+        cell = {**CELL, "padding": "5px 6px", "fontSize": "12px"}
+        hdr = {**HEADER, "padding": "8px 6px"}
+        group_col_widths = (
+            [{"if": {"column_id": "Team"}, "minWidth": "80px", "width": "80px", "maxWidth": "80px",
+              "overflow": "hidden", "textOverflow": "ellipsis"}]
+            + [{"if": {"column_id": "Who"}, "minWidth": "52px", "width": "52px", "maxWidth": "52px",
+               "overflow": "hidden", "textOverflow": "ellipsis"}]
+            + [{"if": {"column_id": c}, "minWidth": "26px", "width": "26px", "maxWidth": "26px"}
+               for c in ["PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]]
+        )
         group_children.append(
             html.Div(
                 [
@@ -396,37 +488,36 @@ def update_all(n):
                     dash_table.DataTable(
                         data=gdf[group_cols].to_dict("records") if not gdf.empty else [],
                         columns=[{"name": c, "id": c} for c in group_cols],
-                        style_header=HEADER,
+                        style_header=hdr,
                         style_data=cell,
-                        style_cell_conditional=_numeric_align(NUMERIC_COLS),
+                        style_cell_conditional=_numeric_align(NUMERIC_COLS) + group_col_widths,
                         style_data_conditional=gfmt,
-                        style_table={"overflowX": "auto"},
+                        style_table={"overflowX": "hidden"},
                     ),
                 ],
                 className="group-cell",
             )
         )
 
+    owner_colour_rules = (
+        _owner_col_colour_rules("HomeOwner")
+        + _owner_col_colour_rules("AwayOwner")
+    )
+    fixture_colours = _fixture_colour_rules(draw)
+    fixture_stripes = _team_stripe_rules(draw, "Home") + _team_stripe_rules(draw, "Away")
+    fixture_fmt = fixture_stripes + fixture_colours + owner_colour_rules
+
     # Recent results
     finished = fixtures[fixtures["Status"] == "Finished"].tail(10).iloc[::-1]
-    recent_fmt = (
-        _team_stripe_rules(draw, "Home")
-        + _team_stripe_rules(draw, "Away")
-    )
+    finished_out = _add_owner_cols(finished[["Date", "Time", "Home", "Score", "Away", "Stage"]])
 
     # Upcoming fixtures
     upcoming = fixtures[fixtures["Status"] == "Upcoming"].head(10)
-    upcoming_fmt = (
-        _team_stripe_rules(draw, "Home")
-        + _team_stripe_rules(draw, "Away")
-    )
+    upcoming_out = _add_owner_cols(upcoming[["Date", "Time", "Home", "Away", "Stage"]])
 
     # Knockout stage
     ko = fixtures[~fixtures["Stage"].str.startswith("Group", na=False)].copy()
-    ko_fmt = (
-        _team_stripe_rules(draw, "Home")
-        + _team_stripe_rules(draw, "Away")
-    )
+    ko_out = _add_owner_cols(ko[["Stage", "Home", "Score", "Away"]]) if not ko.empty else pd.DataFrame()
 
     return (
         person_table.to_dict("records"),
@@ -434,12 +525,12 @@ def update_all(n):
         team_table.to_dict("records"),
         team_fmt,
         group_children,
-        finished[["Date", "Time", "Home", "Score", "Away", "Stage"]].to_dict("records"),
-        recent_fmt,
-        upcoming[["Date", "Time", "Home", "Away", "Stage"]].to_dict("records"),
-        upcoming_fmt,
-        ko[["Stage", "Home", "Score", "Away"]].to_dict("records") if not ko.empty else [],
-        ko_fmt,
+        finished_out.to_dict("records"),
+        fixture_fmt,
+        upcoming_out.to_dict("records"),
+        fixture_fmt,
+        ko_out[["Stage", "Home", "HomeOwner", "Score", "Away", "AwayOwner"]].to_dict("records") if not ko_out.empty else [],
+        fixture_fmt,
         f"Last updated: {timestamp} UTC",
     )
 

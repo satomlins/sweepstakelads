@@ -18,6 +18,10 @@ gunicorn app:server
 # Print current standings from the command line
 uv run python -m tournament          # re-fetch from Wikipedia
 uv run python -m tournament --cache  # use CSV cache if fresh
+
+# Seed fake data for UI development (writes cache files + sets timestamp 24h ahead so
+# the app won't auto-refresh from Wikipedia during the session)
+uv run python dev_seed.py
 ```
 
 Dependencies are managed with `uv` (pyproject.toml + uv.lock) for local dev, and `requirements.txt` for deployment. Install with `uv sync`.
@@ -46,11 +50,15 @@ Strict separation of concerns — each module has one job:
 - CLI entrypoint: `python -m tournament [--cache]`
 
 **`app.py`** — Dash layout + callbacks only, no business logic:
-- Six tables: person leaderboard, team table, 12 group mini-tables, recent results, upcoming fixtures, knockout stage
+- Six tables: person leaderboard, team table, 12 group mini-tables, knockout stage, recent results, upcoming fixtures
+- Page order: leaderboard + teams (equal width) → groups → knockout → recent results + upcoming fixtures
+- Fixtures column order: `[Date, Time, HomeOwner, Home, Score, Away, AwayOwner, Stage]` — owner name flanks each team
+- Group mini-tables: compact (12px font, 5px padding, fixed narrow numeric columns) — no horizontal scroll
 - Single callback `update_all` fires every 5 minutes via `dcc.Interval`
-- Owner identity shown as inset left-border stripe (`boxShadow: inset N px 0 0 0 <colour>`) — no full-cell background tints
+- Owner identity: left-border stripe on name cell + full row text colour (leaderboard/teams); injected owner column coloured by owner (groups/fixtures)
 - Eliminated teams: `color: var(--eliminated)` + `text-decoration: line-through` (no red)
 - Header strip: wordmark left, "Last updated" right; footer: copyright left, social icons right
+- Times are scraped as-is from Wikipedia — not localised to viewer's timezone
 
 **`assets/s1.css`** — full design system (dark-only, greyscale palette):
 - CSS custom properties in `:root` for all colours, surfaces, borders, text
@@ -61,7 +69,13 @@ Strict separation of concerns — each module has one job:
 
 10 confirmed: Scott, Hugo, Sam, Brendan, Isaac, Adrian, Alex, Mary, Keshy, Jacob. 2 TBC.
 
-Owner colours (pastels, used only as accent stripes — never full cell backgrounds):
+Owner colours appear in three ways:
+- **Leaderboard / team table**: entire row text in owner colour; left-border accent stripe on the name cell
+- **Groups**: `Who` column injected next to `Team`, both cells coloured by owner; left-border stripe on Team cell
+- **Fixtures / knockout**: `HomeOwner` and `AwayOwner` columns injected (blank header) next to each team name, coloured by owner; left-border stripe on team name cell
+- Never full cell backgrounds; colours are pastels for contrast on dark bg
+
+Owner colour map (pastels):
 
 ```python
 COLOURS = {
