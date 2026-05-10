@@ -1,0 +1,14 @@
+[project]
+name = "sweepstakelads"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "dash>=2.17",
+    "dash-iconify>=0.1.2",
+    "pandas>=2.0",
+    "requests>=2.31",
+    "gunicorn>=21.0",
+    "plotly>=5.0",
+]
