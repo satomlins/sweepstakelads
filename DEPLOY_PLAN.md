@@ -128,7 +128,8 @@ Open the URL in a browser and confirm the dashboard renders with the pre-draw "T
 - **`ExecStart` must not point into `/home/opc/.venv/`** — use `/usr/local/bin/uv run ...`.
 - **`EnvironmentFile` must not live under `/home/opc/`** — use `/etc/sysconfig/<app>`.
 
-## Open items to confirm before executing
+## Confirmed values (resolved at deploy time 2026-05-10)
 
-- GitHub remote URL / owner (for the `git clone` command).
-- Existing cloudflared tunnel name on the Oracle box (for `cloudflared tunnel route dns`).
+- GitHub remote: `https://github.com/satomlins/sweepstakelads.git`
+- Cloudflared tunnel UUID: `dcd0bf6e-e2f4-4e36-9c2a-3f7d1b2566d7` (use UUID not name with `sudo /usr/local/bin/cloudflared` — `cloudflared` is not on sudo's PATH)
+- `uv` for systemd: `/usr/local/bin/uv` (already installed; `/home/opc/.local/bin/uv` is the user install but SELinux blocks it from `init_t`)

@@ -111,10 +111,33 @@ COLOURS = {
 
 ## Deployment
 
-- Host: Oracle Cloud, URL: `sweepstakelads.stomlins.com`
-- TLS + DNS via Cloudflare (existing `cloudflared` tunnel — no certbot needed)
-- Run: `gunicorn app:server` bound to localhost; cloudflared forwards to it
-- Managed as a systemd unit
+- Host: Oracle Cloud always-free tier, URL: `sweepstakelads.stomlins.com`
+- TLS + DNS via Cloudflare — tunnel UUID `dcd0bf6e-e2f4-4e36-9c2a-3f7d1b2566d7`, config at `/etc/cloudflared/config.yml`
+- App directory: `/home/opc/sweepstakelads` (tracking `wc2026` branch of `github.com/satomlins/sweepstakelads`)
+- Systemd unit: `sweepstakelads.service` — `ExecStart=/usr/local/bin/uv run gunicorn app:server --bind 127.0.0.1:8050 --workers 1`
+- Env file: `/etc/sysconfig/sweepstakelads` (currently empty; kept for future secrets)
+
+### Steady-state update workflow
+
+```bash
+# Local
+git commit && git push origin wc2026
+
+# Oracle
+ssh stomlins-oracle
+cd /home/opc/sweepstakelads
+git pull
+sudo systemctl restart sweepstakelads
+# If pyproject.toml changed: uv sync  (before the restart)
+```
+
+### Hard constraints (Oracle)
+
+- Billing must stay $0 — always-free tier only
+- No `setenforce 0` — work with SELinux, not around it
+- Bind to `127.0.0.1` only — cloudflared handles public exposure
+- `ExecStart` must not point into `/home/opc/.venv/` — use `/usr/local/bin/uv run ...`
+- `EnvironmentFile` must live outside `/home/opc/` — use `/etc/sysconfig/<app>`
 
 ## Design spec
 
