@@ -141,4 +141,4 @@ sudo systemctl restart sweepstakelads
 
 ## Design spec
 
-Full UI design spec is in `DESIGN.md`. Implementation plan is in `PLAN_2026.md`.
+Full UI design spec is in `docs/DESIGN.md`. Implementation plan is in `docs/PLAN_2026.md`. Deployment notes are in `docs/DEPLOY_PLAN.md`.
