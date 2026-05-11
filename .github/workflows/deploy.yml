@@ -1,0 +1,33 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync --frozen
+      - run: uv run pytest -q
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.ORACLE_DEPLOY_KEY }}
+      - name: Deploy to Oracle
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new \
+              -o UserKnownHostsFile=/dev/null \
+              opc@${{ secrets.ORACLE_HOST }} deploy
+      - name: Smoke test
+        run: curl -fsS https://sweepstakelads.stomlins.com/ > /dev/null

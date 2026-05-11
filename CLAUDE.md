@@ -154,17 +154,22 @@ COLOURS = {
 
 ### Steady-state update workflow
 
-```bash
-# Local
-git commit && git push origin main
+Push to `main` triggers auto-deploy via GitHub Actions (`.github/workflows/deploy.yml`):
+1. Tests run (`uv run pytest -q`)
+2. On success, SSH into Oracle via deploy key and run `scripts/deploy.sh`
+3. `deploy.sh` pulls `main`, runs `uv sync --frozen`, restarts the service, and smoke-tests it
 
-# Oracle
+Manual deploy (fallback):
+
+```bash
 ssh stomlins-oracle
 cd /home/opc/sweepstakelads
 git pull
 sudo systemctl restart sweepstakelads
 # If pyproject.toml changed: uv sync  (before the restart)
 ```
+
+Rollback: `git reset --hard <previous-sha>` on Oracle + `sudo systemctl restart sweepstakelads`. See `docs/DEPLOY_PLAN.md` for full instructions.
 
 ### Hard constraints (Oracle)
 

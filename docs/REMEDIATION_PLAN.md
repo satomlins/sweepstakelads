@@ -263,11 +263,11 @@ on public repos.
 
 ---
 
-## Phase 4 — Auto-deploy on push to main ← START HERE NEXT
+## Phase 4 — Auto-deploy on push to main ✅ COMPLETE (2026-05-11)
 
 ~30 min once Oracle bits are in place.
 
-### 4.1 SSH key + sudoers on Oracle
+### 4.1 SSH key + sudoers on Oracle ✅
 
 ```bash
 # Local
@@ -301,7 +301,7 @@ sleep 2
 curl -fsS http://127.0.0.1:8050/ > /dev/null
 ```
 
-### 4.2 GitHub Actions workflow
+### 4.2 GitHub Actions workflow ✅
 
 ```yaml
 # .github/workflows/deploy.yml
@@ -339,7 +339,7 @@ Secrets to add in GitHub:
 - `ORACLE_DEPLOY_KEY` — the private key generated above
 - `ORACLE_HOST` — the host (kept secret to reduce drive-by attack surface)
 
-### 4.3 Rollback plan
+### 4.3 Rollback plan ✅
 
 If the deploy breaks production, `ssh stomlins-oracle` and
 `git reset --hard <previous-sha> && sudo systemctl restart sweepstakelads`.
@@ -347,9 +347,9 @@ Worth documenting in `docs/DEPLOY_PLAN.md`.
 
 ---
 
-## Phase 5 — Code tidy-up (low priority)
+## Phase 5 — Code tidy-up (low priority) ← START HERE NEXT
 
-Skip until phases 1-4 are done.
+Phases 1–4 are complete. Phase 5 is safe to do now.
 
 ### 5.1 Hoist deterministic style rules
 

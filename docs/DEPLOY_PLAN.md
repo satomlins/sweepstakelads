@@ -128,6 +128,71 @@ Open the URL in a browser and confirm the dashboard renders with the pre-draw "T
 - **`ExecStart` must not point into `/home/opc/.venv/`** — use `/usr/local/bin/uv run ...`.
 - **`EnvironmentFile` must not live under `/home/opc/`** — use `/etc/sysconfig/<app>`.
 
+## Auto-deploy setup (Phase 4)
+
+Push to `main` triggers `.github/workflows/deploy.yml`: tests run, then on success SSH into Oracle and run `scripts/deploy.sh` via a forced command. The deploy script pulls the latest `main`, runs `uv sync --frozen`, restarts the service, and smoke-tests it locally.
+
+### One-time local setup
+
+```bash
+# Generate a dedicated deploy key (no passphrase — it's locked down by forced command)
+ssh-keygen -t ed25519 -f ~/.ssh/sweepstakelads_deploy -N ""
+```
+
+### One-time Oracle setup
+
+SSH in manually the first time:
+
+```bash
+ssh stomlins-oracle
+```
+
+**1. Add deploy key with forced command** — append to `/home/opc/.ssh/authorized_keys`:
+
+```
+command="/home/opc/sweepstakelads/scripts/deploy.sh",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 <paste public key here>
+```
+
+The `command=` restriction means even if the private key leaks, it can only trigger the deploy script — nothing else.
+
+**2. Passwordless service restart** (for the deploy script):
+
+```bash
+echo 'opc ALL=(root) NOPASSWD: /usr/bin/systemctl restart sweepstakelads' \
+  | sudo tee /etc/sudoers.d/sweepstakelads
+sudo chmod 0440 /etc/sudoers.d/sweepstakelads
+```
+
+**3. Verify the forced command works** from your local machine:
+
+```bash
+ssh -i ~/.ssh/sweepstakelads_deploy opc@<oracle-host>
+# Should run deploy.sh and print "Deploy OK", not open a shell
+```
+
+### GitHub secrets to add
+
+In the repository settings → Secrets → Actions:
+
+| Secret name | Value |
+|---|---|
+| `ORACLE_DEPLOY_KEY` | Contents of `~/.ssh/sweepstakelads_deploy` (the private key) |
+| `ORACLE_HOST` | The Oracle instance IP or hostname |
+
+## Rollback
+
+If a deploy breaks production:
+
+```bash
+ssh stomlins-oracle
+cd /home/opc/sweepstakelads
+git log --oneline -5          # find the previous good SHA
+git reset --hard <sha>
+sudo systemctl restart sweepstakelads
+```
+
+Then push a revert commit to `main` to keep git state consistent with the server.
+
 ## Confirmed values (resolved at deploy time 2026-05-10)
 
 - GitHub remote: `https://github.com/satomlins/sweepstakelads.git`
