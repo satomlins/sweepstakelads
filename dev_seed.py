@@ -19,14 +19,14 @@ DRAW_ROWS = [
     ("Mary",    "Switzerland"),    ("Mary",    "Uruguay"),      ("Mary",    "Cameroon"),            ("Mary",    "Indonesia"),
     ("Keshy",   "Ecuador"),        ("Keshy",   "Peru"),         ("Keshy",   "Scotland"),            ("Keshy",   "Guinea"),
     ("Jacob",   "Panama"),         ("Jacob",   "Bolivia"),      ("Jacob",   "Denmark"),             ("Jacob",   "Jamaica"),
-    ("TBC",     "Venezuela"),      ("TBC",     "Curacao"),      ("TBC",     "Honduras"),            ("TBC",     "Albania"),
-    ("TBC",     "Qatar"),          ("TBC",     "Uzbekistan"),   ("TBC",     "Trinidad & Tobago"),   ("TBC",     "New Zealand"),
+    ("Seth",    "Venezuela"),      ("Seth",    "Curaçao"),      ("Seth",    "Honduras"),            ("Seth",    "Albania"),
+    ("Ella",    "Qatar"),          ("Ella",    "Uzbekistan"),   ("Ella",    "Trinidad & Tobago"),   ("Ella",    "New Zealand"),
 ]
 
 GROUPS = {
     "A": ["USA", "Panama", "Albania", "Morocco"],
     "B": ["Canada", "Honduras", "Belgium", "Trinidad & Tobago"],
-    "C": ["Mexico", "Jamaica", "France", "Curacao"],
+    "C": ["Mexico", "Jamaica", "France", "Curaçao"],
     "D": ["Argentina", "Chile", "Germany", "Peru"],
     "E": ["Brazil", "Bolivia", "England", "Venezuela"],
     "F": ["Colombia", "Ecuador", "Spain", "Uruguay"],
@@ -46,7 +46,7 @@ STRENGTHS = {
     "Australia": 6, "Italy": 6, "Chile": 6, "Ecuador": 6, "Turkey": 6, "Egypt": 6,
     "Ivory Coast": 6, "Saudi Arabia": 6, "Iran": 6, "Canada": 6, "Peru": 5,
     "Albania": 5, "Bolivia": 5, "Venezuela": 5, "Cameroon": 5, "Scotland": 5,
-    "Panama": 5, "Jamaica": 5, "Guinea": 5, "Honduras": 4, "Curacao": 4,
+    "Panama": 5, "Jamaica": 5, "Guinea": 5, "Honduras": 4, "Curaçao": 4,
     "Indonesia": 4, "Qatar": 4, "Uzbekistan": 4, "New Zealand": 4,
     "Trinidad & Tobago": 4,
 }

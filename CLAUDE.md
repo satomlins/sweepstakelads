@@ -83,7 +83,7 @@ Strict separation of concerns — each module has one job:
 
 ## Participants and colours
 
-12 confirmed: Scott, Hugo, Sam, Brendan, Isaac, Adrian, Alex, Mary, Keshy, Jacob, Seth, Ella.
+12 confirmed: Scott, Hugo, Sam, Brendan, Isaac, Adrian, Alex, Mary, Keshy, Jacob, Seth, Ella. All 12 have colours in `COLOURS` dict in `app.py`.
 
 Owner colours appear in three ways:
 - **Leaderboard / team table**: entire row text in owner colour; left-border accent stripe on the name cell
@@ -105,6 +105,8 @@ COLOURS = {
     "Mary":    "#ffc6ff",
     "Keshy":   "#c7ceea",
     "Jacob":   "#ffdac1",
+    "Seth":    "#b5ead7",
+    "Ella":    "#f8c8d4",
 }
 ```
 
