@@ -6,6 +6,7 @@ from dash_iconify import DashIconify
 from datetime import datetime as _dt, timezone as _tz, timedelta
 
 from tournament import get_data, load_draw
+from scoring import compute_third_place_table
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -78,6 +79,7 @@ _RESULT_COLS  = ["Date", "Time", "HomeOwner", "Home", "Score", "Away", "AwayOwne
 _FIXTURE_COLS = ["Match", "Date", "Time", "HomeOwner", "Home", "Away", "AwayOwner", "Stage"]
 _KO_COLS      = ["Match", "Stage", "HomeOwner", "Home", "Score", "Away", "AwayOwner"]
 _OWNER_LABELS = {"HomeOwner": "", "AwayOwner": ""}
+_THIRD_COLS   = ["Group", "Team", "Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
 
 
 # ---------------------------------------------------------------------------
@@ -402,6 +404,22 @@ app.layout = html.Div(
                         ),
                         html.Div(
                             [
+                                html.H3("Third-place standings", style=SECTION_LABEL),
+                                html.P(
+                                    "Top 8 of 12 qualify for the round of 32",
+                                    style={
+                                        "fontSize": "11px",
+                                        "color": "var(--text-faint)",
+                                        "margin": "0 0 10px",
+                                        "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                                    },
+                                ),
+                                _make_table("third-place-table", _THIRD_COLS),
+                            ],
+                            className="section-gap",
+                        ),
+                        html.Div(
+                            [
                                 html.H3("Knockout stage", style=SECTION_LABEL),
                                 _make_table("knockout-table", _KO_COLS, col_labels=_OWNER_LABELS),
                             ],
@@ -510,7 +528,9 @@ def switch_page(pathname):
     Output("person-table-lb",  "style_data_conditional"),
     Output("team-table",       "data"),
     Output("team-table",       "style_data_conditional"),
-    Output("group-tables",     "children"),
+    Output("group-tables",       "children"),
+    Output("third-place-table",  "data"),
+    Output("third-place-table",  "style_data_conditional"),
     Output("recent-table",     "data"),
     Output("recent-table",     "style_data_conditional"),
     Output("upcoming-table",   "data"),
@@ -609,6 +629,26 @@ def update_all(n, tz_offset_minutes):
             )
         )
 
+    # Third-place standings table
+    tp_df = compute_third_place_table(group_standings)
+    if not tp_df.empty and not draw.empty:
+        tp_df = tp_df.merge(draw[["Team", "Who"]], on="Team", how="left")
+        tp_df["Who"] = tp_df["Who"].fillna("")
+    else:
+        tp_df = tp_df.copy()
+        tp_df["Who"] = ""
+    tp_fmt = (
+        _numeric_align(NUMERIC_COLS)
+        + _team_stripe_rules(draw, "Team")
+        + _group_colour_rules(draw)
+        + _owner_col_colour_rules("Who")
+        + [
+            {"if": {"row_index": i}, "color": "var(--text-faint)", "opacity": "0.6"}
+            for i in range(8, 12)
+        ]
+    )
+    tp_data = tp_df[_THIRD_COLS].to_dict("records") if not tp_df.empty else []
+
     # Fixture formatting shared across result/upcoming tables
     owner_colour_rules = (
         _owner_col_colour_rules("HomeOwner")
@@ -655,6 +695,8 @@ def update_all(n, tz_offset_minutes):
         team_table.to_dict("records"),
         team_fmt,
         group_children,
+        tp_data,
+        tp_fmt,
         recent_out.to_dict("records"),
         fixture_fmt,
         upcoming_out.to_dict("records"),

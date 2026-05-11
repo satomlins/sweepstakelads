@@ -210,6 +210,29 @@ def compute_group_standings(matches: list[dict]) -> dict[str, pd.DataFrame]:
     return result
 
 
+def compute_third_place_table(group_standings: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    """
+    Collect 3rd-placed teams from all groups, sorted PNT→GD→GS desc.
+    Top 8 of the 12 third-place teams advance to the knockout stage.
+    """
+    rows = []
+    for g, df in sorted(group_standings.items()):
+        if len(df) >= 3:
+            row = df.iloc[2].to_dict()
+            row["Group"] = g
+            rows.append(row)
+    if not rows:
+        return pd.DataFrame(
+            columns=["Group", "Team", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
+        )
+    result = (
+        pd.DataFrame(rows)
+        .sort_values(["PNT", "GD", "GS"], ascending=False)
+        .reset_index(drop=True)
+    )
+    return result[["Group", "Team", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]]
+
+
 def compute_person_table(team_table: pd.DataFrame) -> pd.DataFrame:
     """
     Aggregate team_table by owner to produce the person leaderboard.

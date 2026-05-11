@@ -42,6 +42,7 @@ Strict separation of concerns — each module has one job:
 - `compute_team_table(draw, matches)` → DataFrame with columns `[Team, Who, PL, W, D, L, GS, GA, GD, PNT, In]`
 - `compute_person_table(team_table)` → DataFrame summing team stats per owner
 - `compute_group_standings(matches)` → dict of `{group_letter: DataFrame}`
+- `compute_third_place_table(group_standings)` → DataFrame of all 12 third-place teams sorted PNT→GD→GS; top 8 advance to the knockout stage
 - Scoring rules: regular win 3/0, AET win 3/1 (GD counts), pens 2/1 (GD not counted), group draw 1/1, third-place match 1/0
 - `compute_team_table` seeds team rows from group-stage matches only — knockout placeholder names like "Winner of Match X" are intentionally excluded
 
@@ -57,7 +58,7 @@ Strict separation of concerns — each module has one job:
 - Three-tab navigation (Home / Leaderboard / Fixtures & Results) using `dcc.Location` URL routing; active tab highlighted by CSS class
 - **Page: Home** — person leaderboard (full width) + recent results / upcoming fixtures side-by-side
 - **Page: Leaderboard** — person leaderboard + team table (sortable)
-- **Page: Fixtures & Results** — 12 group mini-tables + knockout stage + all results + all upcoming fixtures
+- **Page: Fixtures & Results** — 12 group mini-tables + third-place standings table + knockout stage + all results + all upcoming fixtures
 - Single callback `update_all` fires on `dcc.Interval` (5 min) and on `tz-offset` store change
 - **Timezone handling**: browser offset detected via clientside callback (`-new Date().getTimezoneOffset()` → `dcc.Store(id="tz-offset")`); `_localize_fixtures(df, tz_minutes)` converts `DatetimeUTC` → local date + time for display; `DatetimeUTC` is the single source of truth — dates shift correctly across timezones (e.g. a late-night UTC-7 match shows as next-day for UK users); header shows "All times UTC+X" label
 - **Match numbers**: `fixtures["Match"] = range(1, len(fixtures) + 1)` applied globally in `update_all` after loading (sequential by chronological sort order, 1-indexed)
@@ -65,6 +66,8 @@ Strict separation of concerns — each module has one job:
   - `_RESULT_COLS` = `[Date, Time, HomeOwner, Home, Score, Away, AwayOwner, Stage]`
   - `_FIXTURE_COLS` = `[Match, Date, Time, HomeOwner, Home, Away, AwayOwner, Stage]`
   - `_KO_COLS` = `[Match, Stage, HomeOwner, Home, Score, Away, AwayOwner]`
+  - `_THIRD_COLS` = `[Group, Team, Who, PL, W, D, L, GS, GA, GD, PNT]`
+- **Third-place standings**: computed from `compute_third_place_table(group_standings)` in callback; top 8 rows are normal weight, bottom 4 rows dimmed (opacity 0.6, `var(--text-faint)`) to indicate non-qualifiers
 - Owner identity: left-border stripe on name cell + full row text colour (leaderboard/teams); injected owner column coloured by owner (groups/fixtures); unknown teams (e.g. "Winner of Match X") show blank owner column
 - Eliminated teams: `color: var(--eliminated)` + `text-decoration: line-through` (no red)
 - Header strip: wordmark left, timezone label + "Last updated" stacked right; footer: copyright left, social icons right
