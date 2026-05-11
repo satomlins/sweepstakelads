@@ -26,6 +26,18 @@ uv run python dev_seed.py
 
 Dependencies are managed with `uv` (pyproject.toml + uv.lock). Install with `uv sync`.
 
+## Tests
+
+```bash
+uv run pytest -q          # run all tests
+uv run pytest -v          # verbose output
+```
+
+- **`tests/test_scraper.py`** — scraper regression tests against pinned wikitext snapshots in `tests/fixtures/`. Catches silent zero-match failures if Wikipedia changes the football-box template format.
+- **`tests/test_scoring.py`** — pure scoring function tests: regular win, AET, penalties, draw, third-place match, team/person table, group standings, third-place table.
+- **`tests/fixtures/`** — pinned wikitext snapshots (`group_a_2026-05-11.wikitext`, `knockout_2026-05-11.wikitext`). Run `uv run python scripts/refresh_fixtures.py` to regenerate when upstream pages legitimately change.
+- **`.github/workflows/test.yml`** — runs `uv sync --frozen && uv run pytest -q` on every push and PR.
+
 ## Architecture
 
 Strict separation of concerns — each module has one job:

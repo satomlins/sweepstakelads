@@ -218,13 +218,13 @@ finds failures.
 
 ---
 
-## Phase 3 — Test infrastructure ← START HERE NEXT
+## Phase 3 — Test infrastructure ✅ COMPLETE (2026-05-11)
 
 ~2 hours. `docs/PLAN_2026.md:44, 60-62` already called this out as a risk: if
 Wikipedia changes the football-box template format the scraper will silently
 return zero matches and the app will go blank.
 
-### 3.1 Snapshot the wikitext
+### 3.1 Snapshot the wikitext ✅
 
 ```
 tests/
@@ -238,7 +238,7 @@ tests/
 Add a `scripts/refresh_fixtures.py` so we can regenerate snapshots when the
 upstream page legitimately changes (e.g. a new round added).
 
-### 3.2 Scraper regression tests
+### 3.2 Scraper regression tests ✅
 
 ```python
 def test_parse_group_a_2026_05_11():
@@ -250,20 +250,20 @@ def test_parse_group_a_2026_05_11():
     # …
 ```
 
-### 3.3 Scoring regression tests
+### 3.3 Scoring regression tests ✅
 
 Pin a small set of deterministic match dicts and the expected `team_table` /
 `person_table` output. Cover: regular win, AET win, penalty shootout,
 third-place playoff, group draw, knockout placeholder names.
 
-### 3.4 Wire into CI
+### 3.4 Wire into CI ✅
 
 A 5-line GitHub Action — `uv sync && uv run pytest -q` on push and PR. Free
 on public repos.
 
 ---
 
-## Phase 4 — Auto-deploy on push to main
+## Phase 4 — Auto-deploy on push to main ← START HERE NEXT
 
 ~30 min once Oracle bits are in place.
 

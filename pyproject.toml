@@ -12,3 +12,8 @@ dependencies = [
     "gunicorn>=21.0",
     "plotly>=5.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
