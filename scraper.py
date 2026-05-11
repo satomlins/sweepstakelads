@@ -15,7 +15,7 @@ FIFA_TEAM_NAMES = {
     "PAN": "Panama",
     "JAM": "Jamaica",
     "HON": "Honduras",
-    "TRI": "Trinidad and Tobago",
+    "TRI": "Trinidad & Tobago",
     "HAI": "Haiti",
     "CUB": "Cuba",
     "SLV": "El Salvador",
@@ -122,6 +122,7 @@ FIFA_TEAM_NAMES = {
     "SUD": "Sudan",
     # OFC
     "NZL": "New Zealand",
+    "CUW": "Curaçao",
 }
 
 GROUP_PAGES = [

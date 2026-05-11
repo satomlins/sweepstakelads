@@ -22,6 +22,8 @@ COLOURS = {
     "Mary":    "#ffc6ff",
     "Keshy":   "#c7ceea",
     "Jacob":   "#ffdac1",
+    "Seth":    "#b5ead7",
+    "Ella":    "#f8c8d4",
 }
 
 HEADER = {
@@ -287,7 +289,7 @@ app.layout = html.Div(
                                     },
                                 ),
                                 html.Span(
-                                    " · 2026 FIFA WORLD CUP",
+                                    " · 2026 WORLD CUP",
                                     style={
                                         "fontSize": "12px",
                                         "fontWeight": "600",
