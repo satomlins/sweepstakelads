@@ -132,13 +132,54 @@ def knockout_matches(group_standings: dict) -> list[dict]:
             "status": "finished",
         })
 
-    # R16: 8 upcoming matches
+    # R16: first 4 finished, last 4 upcoming
     base_r16 = date(2026, 7, 14)
     r16_pairs = [(r16_teams[i], r16_teams[15 - i]) for i in range(8)]
+    qf_teams = []
 
     for i, (home, away) in enumerate(r16_pairs):
+        if i < 4:
+            hs, aws = gen_score(home, away)
+            if hs == aws:
+                hs += 1
+            winner = home if hs > aws else away
+            qf_teams.append(winner)
+            matches.append({
+                "date": str(base_r16 + timedelta(days=i // 4)),
+                "time": TIMES[i % len(TIMES)],
+                "home_team": home,
+                "away_team": away,
+                "home_score": hs,
+                "away_score": aws,
+                "pen_home": None,
+                "pen_away": None,
+                "aet": False,
+                "stage": "Round of 16",
+                "status": "finished",
+            })
+        else:
+            qf_teams.append(f"Winner of Match {89 + i}")
+            matches.append({
+                "date": str(base_r16 + timedelta(days=i // 4)),
+                "time": TIMES[i % len(TIMES)],
+                "home_team": home,
+                "away_team": away,
+                "home_score": None,
+                "away_score": None,
+                "pen_home": None,
+                "pen_away": None,
+                "aet": False,
+                "stage": "Round of 16",
+                "status": "upcoming",
+            })
+
+    # QF: 4 upcoming — cross-bracket so each match has one known team + one TBD
+    base_qf = date(2026, 7, 18)
+    qf_pairs = [(qf_teams[i], qf_teams[7 - i]) for i in range(4)]
+
+    for i, (home, away) in enumerate(qf_pairs):
         matches.append({
-            "date": str(base_r16 + timedelta(days=i // 4)),
+            "date": str(base_qf + timedelta(days=i // 2)),
             "time": TIMES[i % len(TIMES)],
             "home_team": home,
             "away_team": away,
@@ -147,7 +188,7 @@ def knockout_matches(group_standings: dict) -> list[dict]:
             "pen_home": None,
             "pen_away": None,
             "aet": False,
-            "stage": "Round of 16",
+            "stage": "Quarter-final",
             "status": "upcoming",
         })
 
@@ -159,7 +200,15 @@ def matches_to_fixtures(matches: list[dict]) -> pd.DataFrame:
     for m in matches:
         hs, aws = m["home_score"], m["away_score"]
         score = f"{hs}–{aws}" if hs is not None else "vs"
+        # Treat dev times as UTC (24h strings like "14:00") — good enough for UI dev
+        dt_utc = ""
+        try:
+            dt = datetime.strptime(f"{m['date']} {m['time']}", "%Y-%m-%d %H:%M")
+            dt_utc = dt.replace(tzinfo=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+        except Exception:
+            pass
         rows.append({
+            "DatetimeUTC": dt_utc,
             "Date": m["date"],
             "Time": m["time"],
             "Home": m["home_team"],
@@ -168,7 +217,12 @@ def matches_to_fixtures(matches: list[dict]) -> pd.DataFrame:
             "Stage": m["stage"],
             "Status": m["status"].capitalize(),
         })
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    df["_sort"] = pd.to_datetime(df["DatetimeUTC"], errors="coerce")
+    df.sort_values("_sort", inplace=True, na_position="last")
+    df.drop(columns=["_sort"], inplace=True)
+    df.reset_index(drop=True, inplace=True)
+    return df
 
 
 def main():

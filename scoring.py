@@ -105,8 +105,10 @@ def compute_team_table(draw: pd.DataFrame, matches: list[dict]) -> pd.DataFrame:
             continue
         _apply_match(stats, m)
 
-    # Ensure any team seen in fixtures appears (covers empty-draw state)
+    # Seed from group-stage matches — every real team appears there and placeholders don't
     for m in matches:
+        if not m.get("stage", "").startswith("Group "):
+            continue
         for team in (m["home_team"], m["away_team"]):
             if team not in stats:
                 stats[team] = {"W": 0, "D": 0, "L": 0, "GS": 0, "GA": 0, "PNT": 0}

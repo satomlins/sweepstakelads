@@ -3,6 +3,7 @@ import dash
 from dash import dcc, html, dash_table
 from dash.dependencies import Input, Output
 from dash_iconify import DashIconify
+from datetime import datetime as _dt, timezone as _tz, timedelta
 
 from tournament import get_data, load_draw
 
@@ -48,7 +49,7 @@ CELL = {
     "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
 }
 
-NUMERIC_COLS = ["PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
+NUMERIC_COLS = ["PL", "W", "D", "L", "GS", "GA", "GD", "PNT", "Match"]
 
 SECTION_LABEL = {
     "fontSize": "12px",
@@ -69,6 +70,13 @@ GROUP_LABEL = {
     "margin": "0 0 8px",
 }
 
+_PERSON_COLS  = ["Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
+_TEAM_COLS    = ["Team", "Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
+_RESULT_COLS  = ["Date", "Time", "HomeOwner", "Home", "Score", "Away", "AwayOwner", "Stage"]
+_FIXTURE_COLS = ["Match", "Date", "Time", "HomeOwner", "Home", "Away", "AwayOwner", "Stage"]
+_KO_COLS      = ["Match", "Stage", "HomeOwner", "Home", "Score", "Away", "AwayOwner"]
+_OWNER_LABELS = {"HomeOwner": "", "AwayOwner": ""}
+
 
 # ---------------------------------------------------------------------------
 # Style helpers
@@ -87,7 +95,6 @@ def _numeric_align(cols: list[str]) -> list[dict]:
 
 
 def _person_stripe_rules(col: str) -> list[dict]:
-    """Left-border stripe on owner rows (Who column)."""
     return [
         {
             "if": {
@@ -102,7 +109,6 @@ def _person_stripe_rules(col: str) -> list[dict]:
 
 
 def _team_stripe_rules(draw: pd.DataFrame, col: str = "Team") -> list[dict]:
-    """Inset left-border stripe on team rows, coloured by owner."""
     if draw.empty:
         return []
     rules = []
@@ -125,7 +131,6 @@ def _team_stripe_rules(draw: pd.DataFrame, col: str = "Team") -> list[dict]:
 
 
 def _who_stripe_rules(draw: pd.DataFrame, col: str = "Who") -> list[dict]:
-    """Stripe the Who column in team table by owner colour."""
     return _person_stripe_rules(col)
 
 
@@ -141,7 +146,6 @@ def _eliminated_rule() -> dict:
 
 
 def _person_row_colour_rules() -> list[dict]:
-    """Colour entire row text by owner (no column_id = applies to all cells)."""
     return [
         {"if": {"filter_query": f'{{Who}} = "{name}"'}, "color": colour}
         for name, colour in COLOURS.items()
@@ -149,7 +153,6 @@ def _person_row_colour_rules() -> list[dict]:
 
 
 def _team_row_colour_rules() -> list[dict]:
-    """Colour entire row text by Who column."""
     return [
         {"if": {"filter_query": f'{{Who}} = "{name}"'}, "color": colour}
         for name, colour in COLOURS.items()
@@ -157,7 +160,6 @@ def _team_row_colour_rules() -> list[dict]:
 
 
 def _fixture_colour_rules(draw: pd.DataFrame) -> list[dict]:
-    """Colour Home and Away cells by team ownership."""
     if draw.empty:
         return []
     rules = []
@@ -174,7 +176,6 @@ def _fixture_colour_rules(draw: pd.DataFrame) -> list[dict]:
 
 
 def _group_colour_rules(draw: pd.DataFrame) -> list[dict]:
-    """Colour Team cell text in group mini-tables by owner."""
     if draw.empty:
         return []
     rules = []
@@ -189,22 +190,54 @@ def _group_colour_rules(draw: pd.DataFrame) -> list[dict]:
 
 
 def _owner_col_colour_rules(col: str) -> list[dict]:
-    """Colour an owner-name column by the owner's colour."""
     return [
         {"if": {"filter_query": f'{{{col}}} = "{name}"', "column_id": col}, "color": colour}
         for name, colour in COLOURS.items()
     ]
 
 
+def _fmt_local(dt_utc_str: str, tz_minutes: int) -> tuple[str, str]:
+    """Convert an ISO UTC datetime string to (date_label, time_label) in the user's local timezone."""
+    if not dt_utc_str:
+        return "", ""
+    try:
+        dt = _dt.fromisoformat(dt_utc_str).replace(tzinfo=_tz.utc)
+        local = dt + timedelta(minutes=tz_minutes)
+        return local.strftime("%-d %b"), local.strftime("%H:%M")
+    except Exception:
+        return "", ""
+
+
+def _tz_label(tz_minutes: int) -> str:
+    h, m = divmod(abs(tz_minutes), 60)
+    sign = "+" if tz_minutes >= 0 else "-"
+    if h == 0 and m == 0:
+        return "All times UTC"
+    return f"All times UTC{sign}{h}" if m == 0 else f"All times UTC{sign}{h}:{m:02d}"
+
+
+def _localize_fixtures(df: pd.DataFrame, tz_minutes: int) -> pd.DataFrame:
+    """Replace Date/Time columns with timezone-correct values derived from DatetimeUTC."""
+    if df.empty or "DatetimeUTC" not in df.columns:
+        return df
+    out = df.copy()
+    pairs = [_fmt_local(r, tz_minutes) for r in df["DatetimeUTC"]]
+    local_dates = [p[0] for p in pairs]
+    local_times = [p[1] for p in pairs]
+    # Date: use locally-correct date; fall back to raw CSV date only when DatetimeUTC is unparseable
+    out["Date"] = [ld if ld else od for ld, od in zip(local_dates, out["Date"])]
+    # Time: use locally-correct time; empty string when no UTC datetime (avoids ugly raw strings)
+    out["Time"] = local_times
+    return out
+
+
 def _make_table(
     table_id: str,
     columns: list[str],
-    hidden: list[str] | None = None,
     sort: bool = False,
     compact: bool = False,
     col_labels: dict | None = None,
 ) -> dash_table.DataTable:
-    hidden = hidden or []
     col_labels = col_labels or {}
     cell = {**CELL}
     if compact:
@@ -212,7 +245,6 @@ def _make_table(
     return dash_table.DataTable(
         id=table_id,
         columns=[{"name": col_labels.get(c, c), "id": c, "hideable": False} for c in columns],
-        hidden_columns=hidden,
         style_header=HEADER,
         style_data=cell,
         style_cell_conditional=_numeric_align(NUMERIC_COLS),
@@ -222,7 +254,7 @@ def _make_table(
 
 
 # ---------------------------------------------------------------------------
-# App layout
+# App
 # ---------------------------------------------------------------------------
 
 app = dash.Dash(
@@ -234,7 +266,9 @@ server = app.server
 
 app.layout = html.Div(
     [
+        dcc.Location(id="url", refresh=False),
         dcc.Interval(id="interval", interval=5 * 60 * 1000),
+        dcc.Store(id="tz-offset", data=None),
 
         html.Main(
             [
@@ -266,95 +300,129 @@ app.layout = html.Div(
                             ]
                         ),
                         html.Div(
-                            id="last-updated",
-                            style={
-                                "fontSize": "11px",
-                                "color": "var(--text-faint)",
-                                "fontFamily": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
-                            },
+                            [
+                                html.Span(
+                                    id="tz-label",
+                                    style={
+                                        "fontSize": "11px",
+                                        "color": "var(--text-faint)",
+                                        "fontFamily": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+                                    },
+                                ),
+                                html.Div(
+                                    id="last-updated",
+                                    style={
+                                        "fontSize": "11px",
+                                        "color": "var(--text-faint)",
+                                        "fontFamily": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+                                    },
+                                ),
+                            ],
+                            style={"display": "flex", "flexDirection": "column", "alignItems": "flex-end", "gap": "2px"},
                         ),
                     ],
                     className="site-header",
                 ),
 
-                # Row 1 — Leaderboard + Teams
+                # Tab navigation
+                html.Nav(
+                    [
+                        dcc.Link("Home",                href="/",            id="tab-home",       className="tab-link"),
+                        dcc.Link("Leaderboard",         href="/leaderboard", id="tab-leaderboard", className="tab-link"),
+                        dcc.Link("Fixtures & Results",  href="/fixtures",    id="tab-fixtures",    className="tab-link"),
+                    ],
+                    className="tab-nav",
+                ),
+
+                # ── Page: Home ────────────────────────────────────────────
+                html.Div(
+                    [
+                        # Person leaderboard — full width
+                        html.Div(
+                            [
+                                html.H3("Leaderboard", style=SECTION_LABEL),
+                                _make_table("person-table", _PERSON_COLS),
+                            ],
+                        ),
+                        # Recent results + Upcoming fixtures — side by side
+                        html.Div(
+                            [
+                                html.Div(
+                                    [
+                                        html.H3("Recent results", style=SECTION_LABEL),
+                                        _make_table("recent-table", _RESULT_COLS, col_labels=_OWNER_LABELS),
+                                    ],
+                                    className="six columns",
+                                ),
+                                html.Div(
+                                    [
+                                        html.H3("Upcoming fixtures", style=SECTION_LABEL),
+                                        _make_table("upcoming-table", _FIXTURE_COLS, col_labels=_OWNER_LABELS),
+                                    ],
+                                    className="six columns",
+                                ),
+                            ],
+                            className="row section-gap",
+                        ),
+                    ],
+                    id="page-home",
+                ),
+
+                # ── Page: Leaderboard ─────────────────────────────────────
                 html.Div(
                     [
                         html.Div(
                             [
                                 html.H3("Leaderboard", style=SECTION_LABEL),
-                                _make_table(
-                                    "person-table",
-                                    ["Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"],
-                                ),
+                                _make_table("person-table-lb", _PERSON_COLS),
                             ],
-                            className="six columns",
                         ),
                         html.Div(
                             [
                                 html.H3("Teams", style=SECTION_LABEL),
-                                _make_table(
-                                    "team-table",
-                                    ["Team", "Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"],
-                                    sort=True,
-                                ),
+                                _make_table("team-table", _TEAM_COLS, sort=True),
                             ],
-                            className="six columns",
+                            className="section-gap",
                         ),
                     ],
-                    className="row section-gap",
+                    id="page-leaderboard",
+                    style={"display": "none"},
                 ),
 
-                # Row 2 — Groups
-                html.Div(
-                    [
-                        html.H3("Groups", style=SECTION_LABEL),
-                        html.Div(id="group-tables", className="groups-grid"),
-                    ],
-                    className="section-gap",
-                ),
-
-                # Row 3 — Knockout
-                html.Div(
-                    [
-                        html.H3("Knockout stage", style=SECTION_LABEL),
-                        _make_table(
-                            "knockout-table",
-                            ["Stage", "HomeOwner", "Home", "Score", "Away", "AwayOwner"],
-                            col_labels={"HomeOwner": "", "AwayOwner": ""},
-                        ),
-                    ],
-                    id="knockout-section",
-                    className="section-gap",
-                ),
-
-                # Row 4 — Recent + Upcoming
+                # ── Page: Fixtures & Results ──────────────────────────────
                 html.Div(
                     [
                         html.Div(
                             [
-                                html.H3("Recent results", style=SECTION_LABEL),
-                                _make_table(
-                                    "recent-table",
-                                    ["Date", "Time", "HomeOwner", "Home", "Score", "Away", "AwayOwner", "Stage"],
-                                    col_labels={"HomeOwner": "", "AwayOwner": ""},
-                                ),
+                                html.H3("Groups", style=SECTION_LABEL),
+                                html.Div(id="group-tables", className="groups-grid"),
                             ],
-                            className="six columns",
+                        ),
+                        html.Div(
+                            [
+                                html.H3("Knockout stage", style=SECTION_LABEL),
+                                _make_table("knockout-table", _KO_COLS, col_labels=_OWNER_LABELS),
+                            ],
+                            id="knockout-section",
+                            className="section-gap",
+                        ),
+                        html.Div(
+                            [
+                                html.H3("Results", style=SECTION_LABEL),
+                                _make_table("all-results-table", _RESULT_COLS, col_labels=_OWNER_LABELS),
+                            ],
+                            className="section-gap",
                         ),
                         html.Div(
                             [
                                 html.H3("Upcoming fixtures", style=SECTION_LABEL),
-                                _make_table(
-                                    "upcoming-table",
-                                    ["Date", "Time", "HomeOwner", "Home", "Away", "AwayOwner", "Stage"],
-                                    col_labels={"HomeOwner": "", "AwayOwner": ""},
-                                ),
+                                _make_table("all-upcoming-table", _FIXTURE_COLS, col_labels=_OWNER_LABELS),
                             ],
-                            className="six columns",
+                            className="section-gap",
                         ),
                     ],
-                    className="row section-gap",
+                    id="page-fixtures",
+                    style={"display": "none"},
                 ),
 
                 # Footer
@@ -398,42 +466,84 @@ app.layout = html.Div(
 
 
 # ---------------------------------------------------------------------------
-# Callback
+# Callbacks
 # ---------------------------------------------------------------------------
 
-@app.callback(
-    Output("person-table", "data"),
-    Output("person-table", "style_data_conditional"),
-    Output("team-table", "data"),
-    Output("team-table", "style_data_conditional"),
-    Output("group-tables", "children"),
-    Output("recent-table", "data"),
-    Output("recent-table", "style_data_conditional"),
-    Output("upcoming-table", "data"),
-    Output("upcoming-table", "style_data_conditional"),
-    Output("knockout-table", "data"),
-    Output("knockout-table", "style_data_conditional"),
-    Output("last-updated", "children"),
-    Input("interval", "n_intervals"),
+app.clientside_callback(
+    """
+    function(pathname) {
+        return -new Date().getTimezoneOffset();
+    }
+    """,
+    Output("tz-offset", "data"),
+    Input("url", "pathname"),
 )
-def update_all(n):
+
+
+@app.callback(
+    Output("tab-home",        "className"),
+    Output("tab-leaderboard", "className"),
+    Output("tab-fixtures",    "className"),
+    Output("page-home",        "style"),
+    Output("page-leaderboard", "style"),
+    Output("page-fixtures",    "style"),
+    Input("url", "pathname"),
+)
+def switch_page(pathname):
+    show = {}
+    hide = {"display": "none"}
+    active   = "tab-link active"
+    inactive = "tab-link"
+    if pathname == "/leaderboard":
+        return inactive, active, inactive, hide, show, hide
+    if pathname == "/fixtures":
+        return inactive, inactive, active, hide, hide, show
+    return active, inactive, inactive, show, hide, hide
+
+
+@app.callback(
+    Output("person-table",     "data"),
+    Output("person-table",     "style_data_conditional"),
+    Output("person-table-lb",  "data"),
+    Output("person-table-lb",  "style_data_conditional"),
+    Output("team-table",       "data"),
+    Output("team-table",       "style_data_conditional"),
+    Output("group-tables",     "children"),
+    Output("recent-table",     "data"),
+    Output("recent-table",     "style_data_conditional"),
+    Output("upcoming-table",   "data"),
+    Output("upcoming-table",   "style_data_conditional"),
+    Output("knockout-table",   "data"),
+    Output("knockout-table",   "style_data_conditional"),
+    Output("all-results-table",  "data"),
+    Output("all-results-table",  "style_data_conditional"),
+    Output("all-upcoming-table", "data"),
+    Output("all-upcoming-table", "style_data_conditional"),
+    Output("tz-label",         "children"),
+    Output("last-updated",     "children"),
+    Input("interval", "n_intervals"),
+    Input("tz-offset", "data"),
+)
+def update_all(n, tz_offset_minutes):
+    tz_minutes = tz_offset_minutes if tz_offset_minutes is not None else 0
     data = get_data()
     draw = load_draw()
 
-    timestamp = data["timestamp"]
-    team_table = data["team_table"]
+    timestamp    = data["timestamp"]
+    team_table   = data["team_table"]
     person_table = data["person_table"]
     group_standings = data["group_standings"]
-    fixtures = data["fixtures"]
+    fixtures     = data["fixtures"].copy()
+    fixtures["Match"] = range(1, len(fixtures) + 1)
 
-    # Person table: stripe + full row text colour by owner
+    # Person table: stripe + full row text colour
     person_fmt = (
         _numeric_align(NUMERIC_COLS)
         + _person_stripe_rules("Who")
         + _person_row_colour_rules()
     )
 
-    # Team table: row colour first, eliminated overrides Team cell last
+    # Team table: row colour + stripes + eliminated
     team_fmt = (
         _numeric_align(NUMERIC_COLS)
         + _team_stripe_rules(draw, "Team")
@@ -442,15 +552,14 @@ def update_all(n):
         + [_eliminated_rule()]
     )
 
-    # Lookup: team name → owner name (for injecting owner columns)
     team_to_owner = {} if draw.empty else dict(zip(draw["Team"], draw["Who"]))
 
-    def _add_owner_cols(df: pd.DataFrame, home_col: str = "Home", away_col: str = "Away") -> pd.DataFrame:
+    def _add_owner_cols(df: pd.DataFrame) -> pd.DataFrame:
         out = df.copy()
-        if home_col in out.columns:
-            out["HomeOwner"] = out[home_col].map(lambda t: team_to_owner.get(t, ""))
-        if away_col in out.columns:
-            out["AwayOwner"] = out[away_col].map(lambda t: team_to_owner.get(t, ""))
+        if "Home" in out.columns:
+            out["HomeOwner"] = out["Home"].map(lambda t: team_to_owner.get(t, ""))
+        if "Away" in out.columns:
+            out["AwayOwner"] = out["Away"].map(lambda t: team_to_owner.get(t, ""))
         return out
 
     # Group tables
@@ -458,7 +567,6 @@ def update_all(n):
     group_children = []
     for g in sorted(group_standings.keys()):
         gdf = group_standings[g]
-        # Attach owner column
         if not gdf.empty and not draw.empty:
             gdf = gdf.merge(draw[["Team", "Who"]], on="Team", how="left")
             gdf["Who"] = gdf["Who"].fillna("")
@@ -472,7 +580,7 @@ def update_all(n):
             + _owner_col_colour_rules("Who")
         )
         cell = {**CELL, "padding": "5px 6px", "fontSize": "12px"}
-        hdr = {**HEADER, "padding": "8px 6px"}
+        hdr  = {**HEADER, "padding": "8px 6px"}
         group_col_widths = (
             [{"if": {"column_id": "Team"}, "minWidth": "80px", "width": "80px", "maxWidth": "80px",
               "overflow": "hidden", "textOverflow": "ellipsis"}]
@@ -499,6 +607,7 @@ def update_all(n):
             )
         )
 
+    # Fixture formatting shared across result/upcoming tables
     owner_colour_rules = (
         _owner_col_colour_rules("HomeOwner")
         + _owner_col_colour_rules("AwayOwner")
@@ -507,30 +616,54 @@ def update_all(n):
     fixture_stripes = _team_stripe_rules(draw, "Home") + _team_stripe_rules(draw, "Away")
     fixture_fmt = fixture_stripes + fixture_colours + owner_colour_rules
 
-    # Recent results
+    # Recent results (home page — last 10, newest first)
     finished = fixtures[fixtures["Status"] == "Finished"].tail(10).iloc[::-1]
-    finished_out = _add_owner_cols(finished[["Date", "Time", "Home", "Score", "Away", "Stage"]])
+    finished_loc = _localize_fixtures(finished, tz_minutes)
+    recent_out = _add_owner_cols(finished_loc[["Date", "Time", "Home", "Score", "Away", "Stage"]])
 
-    # Upcoming fixtures
+    # Upcoming fixtures (home page — next 10, ascending datetime order)
     upcoming = fixtures[fixtures["Status"] == "Upcoming"].head(10)
-    upcoming_out = _add_owner_cols(upcoming[["Date", "Time", "Home", "Away", "Stage"]])
+    upcoming_loc = _localize_fixtures(upcoming, tz_minutes)
+    upcoming_out = _add_owner_cols(upcoming_loc[["Match", "Date", "Time", "Home", "Away", "Stage"]])
 
-    # Knockout stage
-    ko = fixtures[~fixtures["Stage"].str.startswith("Group", na=False)].copy()
-    ko_out = _add_owner_cols(ko[["Stage", "Home", "Score", "Away"]]) if not ko.empty else pd.DataFrame()
+    # All results (fixtures page — newest first)
+    all_finished = fixtures[fixtures["Status"] == "Finished"].iloc[::-1]
+    all_finished_loc = _localize_fixtures(all_finished, tz_minutes)
+    all_results_out = _add_owner_cols(all_finished_loc[["Date", "Time", "Home", "Score", "Away", "Stage"]])
+
+    # All upcoming (fixtures page — ascending datetime order)
+    all_upcoming = fixtures[fixtures["Status"] == "Upcoming"]
+    all_upcoming_loc = _localize_fixtures(all_upcoming, tz_minutes)
+    all_upcoming_out = _add_owner_cols(all_upcoming_loc[["Match", "Date", "Time", "Home", "Away", "Stage"]])
+
+    # Knockout stage — Match column already populated globally above
+    group_mask = fixtures["Stage"].str.startswith("Group", na=False)
+    ko = fixtures[~group_mask].copy()
+    if not ko.empty:
+        ko_out = _add_owner_cols(ko[["Match", "Stage", "Home", "Score", "Away"]])
+        ko_data = ko_out[["Match", "Stage", "HomeOwner", "Home", "Score", "Away", "AwayOwner"]].to_dict("records")
+    else:
+        ko_data = []
 
     return (
+        person_table.to_dict("records"),
+        person_fmt,
         person_table.to_dict("records"),
         person_fmt,
         team_table.to_dict("records"),
         team_fmt,
         group_children,
-        finished_out.to_dict("records"),
+        recent_out.to_dict("records"),
         fixture_fmt,
         upcoming_out.to_dict("records"),
         fixture_fmt,
-        ko_out[["Stage", "Home", "HomeOwner", "Score", "Away", "AwayOwner"]].to_dict("records") if not ko_out.empty else [],
+        ko_data,
         fixture_fmt,
+        all_results_out.to_dict("records"),
+        fixture_fmt,
+        all_upcoming_out.to_dict("records"),
+        fixture_fmt,
+        _tz_label(tz_minutes),
         f"Last updated: {timestamp} UTC",
     )
 

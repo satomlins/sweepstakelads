@@ -1,6 +1,6 @@
 import re
 import requests
-from datetime import date
+from datetime import date, datetime, timezone, timedelta
 
 WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 
@@ -216,8 +216,8 @@ def _find_football_boxes(wikitext: str) -> list[tuple[int, str]]:
 
 
 def _section_at(wikitext: str, pos: int) -> str:
-    """Return the most recent == section heading == before pos."""
-    headings = list(re.finditer(r"={2,4}\s*(.+?)\s*={2,4}", wikitext[:pos]))
+    """Return the most recent level-2 == section heading == before pos."""
+    headings = list(re.finditer(r"(?<!=)==(?!=)\s*(.+?)\s*(?<!=)==(?!=)", wikitext[:pos]))
     if headings:
         return headings[-1].group(1).strip()
     return ""
@@ -249,10 +249,36 @@ def _parse_date(text: str) -> date | None:
 
 
 def _clean_time(text: str) -> str:
+    text = re.sub(r"<[^>]+>", "", text)
     text = re.sub(r"&\w+;", " ", text)
     text = re.sub(r"\[\[[^\]|]+\|([^\]]+)\]\]", r"\1", text)
     text = re.sub(r"\[\[([^\]]+)\]\]", r"\1", text)
     return text.strip()
+
+
+def _parse_datetime_utc(match_date: date | None, time_str: str) -> datetime | None:
+    """Parse 'H:MM a.m./p.m. UTC±N' + date into a UTC datetime. Returns None on failure."""
+    if not match_date or not time_str:
+        return None
+    # Normalise Unicode minus sign (U+2212) used by Wikipedia
+    normalized = time_str.replace("−", "-")
+    m = re.match(
+        r"(\d{1,2}):(\d{2})\s*([ap]\.?m\.?)\s*UTC([+\-])(\d+)",
+        normalized,
+        re.IGNORECASE,
+    )
+    if not m:
+        return None
+    hour, minute = int(m.group(1)), int(m.group(2))
+    meridiem = m.group(3).lower().replace(".", "")
+    sign, offset_h = m.group(4), int(m.group(5))
+    if meridiem == "pm" and hour != 12:
+        hour += 12
+    elif meridiem == "am" and hour == 12:
+        hour = 0
+    offset = timedelta(hours=(-offset_h if sign == "-" else offset_h))
+    local_dt = datetime(match_date.year, match_date.month, match_date.day, hour, minute, tzinfo=timezone(offset))
+    return local_dt.astimezone(timezone.utc)
 
 
 def parse_matches(wikitext: str, stage_override: str = "") -> list[dict]:
@@ -274,9 +300,9 @@ def parse_matches(wikitext: str, stage_override: str = "") -> list[dict]:
         home_team = _code_to_name(code1) if code1 else team1_text
         away_team = _code_to_name(code2) if code2 else team2_text
 
-        # Strip any remaining wikitext from team names
-        home_team = re.sub(r"\{\{.*?\}\}|\[\[.*?\]\]", "", home_team).strip()
-        away_team = re.sub(r"\{\{.*?\}\}|\[\[.*?\]\]", "", away_team).strip()
+        # Strip any remaining wikitext and HTML comments from team names
+        home_team = re.sub(r"<!--.*?-->|\{\{.*?\}\}|\[\[.*?\]\]", "", home_team).strip()
+        away_team = re.sub(r"<!--.*?-->|\{\{.*?\}\}|\[\[.*?\]\]", "", away_team).strip()
 
         if not home_team or not away_team:
             continue
@@ -287,6 +313,7 @@ def parse_matches(wikitext: str, stage_override: str = "") -> list[dict]:
 
         match_date = _parse_date(params.get("date", ""))
         match_time = _clean_time(params.get("time", ""))
+        datetime_utc = _parse_datetime_utc(match_date, match_time)
 
         stage = stage_override or _section_at(wikitext, pos)
 
@@ -296,6 +323,7 @@ def parse_matches(wikitext: str, stage_override: str = "") -> list[dict]:
             {
                 "date": match_date,
                 "time": match_time,
+                "datetime_utc": datetime_utc,
                 "home_team": home_team,
                 "away_team": away_team,
                 "home_score": home_score,
