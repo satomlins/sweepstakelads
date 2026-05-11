@@ -83,7 +83,7 @@ Strict separation of concerns — each module has one job:
 
 ## Participants and colours
 
-10 confirmed: Scott, Hugo, Sam, Brendan, Isaac, Adrian, Alex, Mary, Keshy, Jacob. 2 TBC.
+12 confirmed: Scott, Hugo, Sam, Brendan, Isaac, Adrian, Alex, Mary, Keshy, Jacob, Seth, Ella.
 
 Owner colours appear in three ways:
 - **Leaderboard / team table**: entire row text in owner colour; left-border accent stripe on the name cell
@@ -154,6 +154,10 @@ sudo systemctl restart sweepstakelads
 - Bind to `127.0.0.1` only — cloudflared handles public exposure
 - `ExecStart` must not point into `/home/opc/.venv/` — use `/usr/local/bin/uv run ...`
 - `EnvironmentFile` must live outside `/home/opc/` — use `/etc/sysconfig/<app>`
+
+## Working practices
+
+Before every commit, update CLAUDE.md to reflect any architectural, behavioural, or participant changes made in that session. The goal is that CLAUDE.md always gives an accurate picture of the current codebase to a future Claude session with no prior context.
 
 ## Design spec
 
