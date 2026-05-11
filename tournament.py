@@ -8,12 +8,16 @@ CLI usage:
 
 import argparse
 import json
+import logging
 import os
+import threading
 import pandas as pd
 from datetime import datetime, timezone
 
 from scraper import fetch_all_matches
 from scoring import compute_team_table, compute_group_standings, compute_person_table
+
+logger = logging.getLogger(__name__)
 
 DRAW_PATH = "assets/draw_2026.csv"
 PARTICIPANTS_PATH = "assets/participants.csv"
@@ -41,10 +45,29 @@ def _cache_age_minutes() -> float:
         return float("inf")
 
 
+def _atomic_write_csv(df: pd.DataFrame, path: str) -> None:
+    tmp = path + ".tmp"
+    df.to_csv(tmp, index=False)
+    os.replace(tmp, path)
+
+
+def _atomic_write_json(data: object, path: str) -> None:
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f)
+    os.replace(tmp, path)
+
+
+def _atomic_write_text(text: str, path: str) -> None:
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        f.write(text)
+    os.replace(tmp, path)
+
+
 def _write_timestamp() -> str:
     ts = str(_now().replace(microsecond=0))
-    with open(LAST_UPDATED_PATH, "w") as f:
-        f.write(ts)
+    _atomic_write_text(ts, LAST_UPDATED_PATH)
     return ts
 
 
@@ -98,7 +121,7 @@ def _matches_to_fixtures_df(matches: list[dict]) -> pd.DataFrame:
 
 def refresh() -> dict:
     """Fetch fresh data, compute all tables, write cache. Returns data dict."""
-    print(f"Fetching match data from Wikipedia...")
+    logger.info("Fetching match data from Wikipedia...")
     draw = load_draw()
     matches = fetch_all_matches()
 
@@ -129,17 +152,16 @@ def refresh() -> dict:
             person_table.sort_values(["PNT", "GD", "GS"], ascending=False, inplace=True)
             person_table.reset_index(drop=True, inplace=True)
 
-    team_table.to_csv(CACHE_TEAM, index=False)
-    person_table.to_csv(CACHE_PERSON, index=False)
-    fixtures_df.to_csv(CACHE_FIXTURES, index=False)
+    _atomic_write_csv(team_table, CACHE_TEAM)
+    _atomic_write_csv(person_table, CACHE_PERSON)
+    _atomic_write_csv(fixtures_df, CACHE_FIXTURES)
 
-    # Serialise group standings to JSON (list of {group, rows} dicts)
     gs_serialisable = {
         g: df.to_dict(orient="records") for g, df in group_standings.items()
     }
-    with open(CACHE_GROUPS, "w") as f:
-        json.dump(gs_serialisable, f)
+    _atomic_write_json(gs_serialisable, CACHE_GROUPS)
 
+    # Write timestamp last — a missing/stale timestamp means cache is incomplete
     timestamp = _write_timestamp()
 
     return {
@@ -175,15 +197,41 @@ def read_cache() -> dict:
     }
 
 
+_refresh_lock = threading.Lock()
+_refresh_in_flight = False
+
+
+def _maybe_refresh_async() -> None:
+    global _refresh_in_flight
+    with _refresh_lock:
+        if _refresh_in_flight:
+            return
+        _refresh_in_flight = True
+
+    def _run() -> None:
+        global _refresh_in_flight
+        try:
+            refresh()
+        except Exception:
+            logger.exception("Background refresh failed")
+        finally:
+            with _refresh_lock:
+                _refresh_in_flight = False
+
+    threading.Thread(target=_run, daemon=True).start()
+
+
 def get_data(force_refresh: bool = False) -> dict:
-    """Return current data, refreshing from Wikipedia if cache is stale."""
+    """Return current data. Triggers a background refresh if cache is stale."""
     cache_exists = all(
         os.path.exists(p)
         for p in [CACHE_TEAM, CACHE_PERSON, CACHE_FIXTURES, CACHE_GROUPS]
     )
-    if not force_refresh and cache_exists and _cache_age_minutes() < CACHE_TTL_MINUTES:
-        return read_cache()
-    return refresh()
+    if not cache_exists:
+        return refresh()
+    if force_refresh or _cache_age_minutes() >= CACHE_TTL_MINUTES:
+        _maybe_refresh_async()
+    return read_cache()
 
 
 if __name__ == "__main__":

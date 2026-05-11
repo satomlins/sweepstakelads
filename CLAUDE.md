@@ -31,12 +31,14 @@ Dependencies are managed with `uv` (pyproject.toml + uv.lock). Install with `uv 
 Strict separation of concerns — each module has one job:
 
 **`scraper.py`** — Wikipedia-only, no scoring logic:
-- Fetches wikitext via `https://en.wikipedia.org/w/api.php?action=parse&prop=wikitext&page=<title>`
+- Fetches all 13 pages in a **single batched HTTP request** via `action=query&prop=revisions&rvprop=content&titles=<pipe-joined titles>` (one ~215 KB call vs 13 sequential calls)
+- `fetch_all_wikitext()` returns `{page_title: wikitext}` dict; `fetch_all_matches()` parses all pages and returns the flat match list
 - Parses `{{footballbox}}` / `{{footballbox collapsible}}` templates
 - Returns a flat list of match dicts with keys: `date`, `time`, `datetime_utc`, `home_team`, `away_team`, `home_score`, `away_score`, `pen_home`, `pen_away`, `aet`, `stage`, `status`
 - `datetime_utc` is a `datetime` object in UTC parsed from Wikipedia's "H:MM a.m./p.m. UTC±N" format (handles Unicode minus U+2212 and `<includeonly>` HTML tags); `None` if unparseable
 - Pages scraped: 12 individual group pages (`2026 FIFA World Cup Group A` … `Group L`) + `2026 FIFA World Cup knockout stage`
 - Future knockout rounds appear with placeholder team names (e.g. "Winner of Match 57") — the scraper passes these through as-is after stripping wikitext markup
+- Uses `logging` (module-level `logger`); partial failures logged as `logger.warning`
 
 **`scoring.py`** — pure functions, no I/O:
 - `compute_team_table(draw, matches)` → DataFrame with columns `[Team, Who, PL, W, D, L, GS, GA, GD, PNT, In]`
@@ -47,10 +49,11 @@ Strict separation of concerns — each module has one job:
 - `compute_team_table` seeds team rows from group-stage matches only — knockout placeholder names like "Winner of Match X" are intentionally excluded
 
 **`tournament.py`** — orchestration + caching:
-- `get_data(force_refresh=False)` — main entry point for `app.py`; returns fresh data or reads CSV/JSON cache
+- `get_data(force_refresh=False)` — main entry point for `app.py`; on first start (no cache) blocks on `refresh()`; otherwise returns cached data immediately and fires a **background refresh** via `threading.Thread(daemon=True)` if cache is stale — UI render is always ~5 ms
+- `_maybe_refresh_async()` — guards against concurrent background refreshes with a `threading.Lock`
 - `load_draw()` — reads `assets/draw_2026.csv` (Who, Team); returns empty DataFrame if not yet populated
 - Cache TTL: 5 minutes. Cache files: `assets/teamtable.csv`, `assets/persontable.csv`, `assets/fixtures.csv`, `assets/group_standings.json`, `assets/last_updated.txt`
-- `refresh()` calls scraper → scoring → writes cache; fixtures are sorted ascending by `DatetimeUTC` before caching so `head(N)` / `tail(N)` slices in app.py are chronologically correct
+- `refresh()` calls scraper → scoring → writes cache using **atomic temp-file writes** (`_atomic_write_csv`, `_atomic_write_json`, `_atomic_write_text`); `last_updated.txt` written last so a partial write shows as stale rather than corrupt; fixtures sorted ascending by `DatetimeUTC` before caching
 - `fixtures.csv` columns: `DatetimeUTC` (ISO 8601 UTC string), `Date`, `Time`, `Home`, `Score`, `Away`, `Stage`, `Status`
 - CLI entrypoint: `python -m tournament [--cache]`
 

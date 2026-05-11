@@ -97,11 +97,11 @@ See `CLAUDE.md` for architecture, `docs/DEPLOY_PLAN.md` for deployment.
 
 ---
 
-## Phase 2 — Scraper rewrite: one HTTP request ← START HERE NEXT
+## Phase 2 — Scraper rewrite: one HTTP request ✅ COMPLETE (2026-05-11)
 
 ~2 hours including tests. **This is the biggest user-visible win.**
 
-### 2.1 Replace `fetch_all_matches()` with a batched query
+### 2.1 Replace `fetch_all_matches()` with a batched query ✅
 
 Current `scraper.py:343-365` does 13 sequential `action=parse` calls, each up
 to 20 s timeout = up to ~4 min worst-case latency. Under `--workers 1` that
@@ -151,7 +151,7 @@ def fetch_all_matches() -> list[dict]:
 `parse_matches` is unchanged — it already handles `{{#invoke:football box|main}}`
 (`scraper.py:195-197`).
 
-### 2.2 Add atomic cache writes
+### 2.2 Add atomic cache writes ✅
 
 `tournament.py:132-143` writes 4 files in sequence. A kill during a refresh
 leaves a half-written CSV; the next `read_cache()` raises in `pd.read_csv`.
@@ -166,7 +166,7 @@ def _atomic_write_csv(df: pd.DataFrame, path: str) -> None:
     os.replace(tmp, path)
 ```
 
-### 2.3 Background refresh instead of blocking refresh
+### 2.3 Background refresh instead of blocking refresh ✅
 
 `tournament.get_data()` currently does the slow refresh inline on the user's
 request thread. Even with batching down to ~1 s, a thread-safe background
@@ -208,7 +208,7 @@ def get_data(force_refresh: bool = False) -> dict:
 Net effect: every UI render is ~5 ms (CSV read), refresh happens off the hot
 path.
 
-### 2.4 Replace `print()` warnings with `logging`
+### 2.4 Replace `print()` warnings with `logging` ✅
 
 `scraper.py:353, 355, 361, 363` use `print` for partial-failure signals. Under
 gunicorn these end up in `journalctl` with no level and no timestamp. Switch
@@ -218,7 +218,7 @@ finds failures.
 
 ---
 
-## Phase 3 — Test infrastructure
+## Phase 3 — Test infrastructure ← START HERE NEXT
 
 ~2 hours. `docs/PLAN_2026.md:44, 60-62` already called this out as a risk: if
 Wikipedia changes the football-box template format the scraper will silently

@@ -1,6 +1,9 @@
+import logging
 import re
 import requests
 from datetime import date, datetime, timezone, timedelta
+
+logger = logging.getLogger(__name__)
 
 WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 
@@ -136,20 +139,30 @@ HEADERS = {
 }
 
 
-def fetch_wikitext(page_title: str) -> str:
+BATCH_TITLES = GROUP_PAGES + [KNOCKOUT_PAGE]
+
+
+def fetch_all_wikitext() -> dict[str, str]:
+    """Fetch wikitext for all 13 pages in a single HTTP request."""
     resp = requests.get(
         WIKIPEDIA_API,
         params={
-            "action": "parse",
-            "prop": "wikitext",
-            "page": page_title,
+            "action": "query",
+            "prop": "revisions",
+            "rvprop": "content",
+            "titles": "|".join(BATCH_TITLES),
             "format": "json",
+            "formatversion": "2",
         },
         headers=HEADERS,
-        timeout=20,
+        timeout=30,
     )
     resp.raise_for_status()
-    return resp.json()["parse"]["wikitext"]["*"]
+    return {
+        page["title"]: page["revisions"][0]["content"]
+        for page in resp.json()["query"]["pages"]
+        if "revisions" in page
+    }
 
 
 def _split_on_pipe(text: str) -> list[str]:
@@ -341,25 +354,27 @@ def parse_matches(wikitext: str, stage_override: str = "") -> list[dict]:
 
 
 def fetch_all_matches() -> list[dict]:
-    """Fetch and parse all matches. Logs warnings on failure but does not raise."""
-    matches: list[dict] = []
-
-    for page in GROUP_PAGES:
-        group = page.split("Group ")[-1]
-        try:
-            wikitext = fetch_wikitext(page)
-            group_matches = parse_matches(wikitext, stage_override=f"Group {group}")
-            matches.extend(group_matches)
-            print(f"  {page}: {len(group_matches)} matches")
-        except Exception as exc:
-            print(f"  WARNING: failed to fetch {page}: {exc}")
-
+    """Fetch and parse all matches via a single batched HTTP request."""
     try:
-        wikitext = fetch_wikitext(KNOCKOUT_PAGE)
-        ko_matches = parse_matches(wikitext)
-        matches.extend(ko_matches)
-        print(f"  {KNOCKOUT_PAGE}: {len(ko_matches)} matches")
+        pages = fetch_all_wikitext()
     except Exception as exc:
-        print(f"  WARNING: failed to fetch knockout stage: {exc}")
+        logger.warning("Failed to fetch Wikipedia batch: %s", exc)
+        return []
+
+    missing = [t for t in BATCH_TITLES if t not in pages]
+    if missing:
+        logger.warning("Pages missing from Wikipedia response: %s", missing)
+
+    matches: list[dict] = []
+    for title, wikitext in pages.items():
+        if title.startswith("2026 FIFA World Cup Group "):
+            group = title.split("Group ")[-1]
+            group_matches = parse_matches(wikitext, stage_override=f"Group {group}")
+            logger.info("%s: %d matches", title, len(group_matches))
+            matches.extend(group_matches)
+        else:
+            ko_matches = parse_matches(wikitext)
+            logger.info("%s: %d matches", title, len(ko_matches))
+            matches.extend(ko_matches)
 
     return matches
