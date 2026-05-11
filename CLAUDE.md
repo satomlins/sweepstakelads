@@ -24,7 +24,7 @@ uv run python -m tournament --cache  # use CSV cache if fresh
 uv run python dev_seed.py
 ```
 
-Dependencies are managed with `uv` (pyproject.toml + uv.lock) for local dev, and `requirements.txt` for deployment. Install with `uv sync`.
+Dependencies are managed with `uv` (pyproject.toml + uv.lock). Install with `uv sync`.
 
 ## Architecture
 
@@ -115,7 +115,7 @@ COLOURS = {
 
 ## Draw status
 
-`assets/draw_2026.csv` ships with headers only until the draw is held. App renders with all-zero standings and "TBC" owners until populated. `assets/participants.csv` has the 10 confirmed names so the person leaderboard exists pre-draw.
+`assets/draw_2026.csv` ships with headers only — populate with real draw results before deploying. The 2026 draw was held in December 2025; the file must be filled in from the official draw sheet. App renders with all-zero standings and "TBC" owners until populated. `assets/participants.csv` has the 12 confirmed names so the person leaderboard exists pre-draw.
 
 ## Key assets
 
@@ -128,7 +128,6 @@ COLOURS = {
 | `assets/fixtures.csv` | Cached fixture list (sorted ascending by DatetimeUTC) |
 | `assets/group_standings.json` | Cached group standings (JSON) |
 | `assets/last_updated.txt` | Cache timestamp (UTC) |
-| `archive/` | 2024 Euro code (preserved for reference) |
 
 ## Deployment
 

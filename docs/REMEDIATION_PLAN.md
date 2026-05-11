@@ -29,11 +29,11 @@ up to 50 titles in a single request. All 13 pages come back in one HTTP call,
 
 ---
 
-## Phase 1 — Data hygiene (do before the next deploy)
+## Phase 1 — Data hygiene ✅ COMPLETE (2026-05-11)
 
 Small, safe, no behavioural change. ~30 min total.
 
-### 1.1 Revert `assets/draw_2026.csv` to headers-only
+### 1.1 Revert `assets/draw_2026.csv` to headers-only ✅
 
 The committed file (`c02bd6c`) contains the dev_seed fake assignments. The 2026
 draw was held in December 2025 — these need replacing with the real draw
@@ -42,7 +42,7 @@ results, but right now the file ships fake data to production.
 - Write `Who,Team\n` and commit.
 - Once real draw results are typed in, commit those.
 
-### 1.2 Untrack `assets/group_standings.json`
+### 1.2 Untrack `assets/group_standings.json` ✅
 
 It's listed in `.gitignore:13` but `git ls-files` shows it tracked (gitignore
 doesn't untrack existing files). Stale fake standings ride along on every
@@ -53,7 +53,7 @@ git rm --cached assets/group_standings.json
 git commit -m "stop tracking cached group standings JSON"
 ```
 
-### 1.3 Delete `requirements.txt`
+### 1.3 Delete `requirements.txt` ✅
 
 Production runs `uv run gunicorn ...` (per `CLAUDE.md` and the systemd unit), so
 `uv.lock` is the source of truth. The file is dead weight and dangerously
@@ -67,7 +67,7 @@ will deploy a broken build.
 - Update `docs/DEPLOY_PLAN.md` if it mentions pip install (it doesn't currently
   but worth a re-read).
 
-### 1.4 Add a `README.md`
+### 1.4 Add a `README.md` ✅
 
 `pyproject.toml:5` declares `readme = "README.md"` but the file doesn't exist
 — `uv sync` warns about it. A minimal one is fine:
@@ -86,7 +86,7 @@ via cloudflared tunnel at https://sweepstakelads.stomlins.com.
 See `CLAUDE.md` for architecture, `docs/DEPLOY_PLAN.md` for deployment.
 ```
 
-### 1.5 Fix CLAUDE.md drift
+### 1.5 Fix CLAUDE.md drift ✅
 
 - Remove the `archive/` row from the "Key assets" table (directory was deleted
   in `4a67970`).
@@ -97,7 +97,7 @@ See `CLAUDE.md` for architecture, `docs/DEPLOY_PLAN.md` for deployment.
 
 ---
 
-## Phase 2 — Scraper rewrite: one HTTP request
+## Phase 2 — Scraper rewrite: one HTTP request ← START HERE NEXT
 
 ~2 hours including tests. **This is the biggest user-visible win.**
 
