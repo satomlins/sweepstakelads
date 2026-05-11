@@ -109,6 +109,46 @@ main {
 }
 
 /* ------------------------------------------------------------
+   Tab navigation
+   ------------------------------------------------------------ */
+.tab-nav {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 48px;
+}
+
+.tab-link {
+  display: inline-block;
+  padding: 12px 20px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 120ms;
+  text-decoration: none;
+}
+
+.tab-link:hover,
+.tab-link:visited:hover {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.tab-link:visited {
+  color: var(--text-faint);
+}
+
+.tab-link.active,
+.tab-link.active:visited {
+  color: var(--text);
+  border-bottom-color: var(--text);
+}
+
+/* ------------------------------------------------------------
    Section spacing
    ------------------------------------------------------------ */
 .section-gap {

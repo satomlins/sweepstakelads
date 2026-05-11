@@ -80,8 +80,10 @@ def _matches_to_fixtures_df(matches: list[dict]) -> pd.DataFrame:
         elif m["aet"]:
             annotation = " (aet)"
 
+        dt_utc = m.get("datetime_utc")
         rows.append(
             {
+                "DatetimeUTC": dt_utc.strftime("%Y-%m-%dT%H:%M:%S") if dt_utc else "",
                 "Date": str(m["date"]) if m["date"] else "",
                 "Time": m["time"],
                 "Home": m["home_team"],
@@ -107,6 +109,11 @@ def refresh() -> dict:
 
     team_table.sort_values(["PNT", "GD", "GS"], ascending=False, inplace=True)
     team_table.reset_index(drop=True, inplace=True)
+
+    fixtures_df["_sort"] = pd.to_datetime(fixtures_df["DatetimeUTC"], errors="coerce")
+    fixtures_df.sort_values("_sort", inplace=True, na_position="last")
+    fixtures_df.drop(columns=["_sort"], inplace=True)
+    fixtures_df.reset_index(drop=True, inplace=True)
 
     # Ensure participants without teams still appear in person table
     participants = load_participants()
