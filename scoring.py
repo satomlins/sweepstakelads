@@ -55,18 +55,8 @@ def _apply_match(stats: dict[str, dict], match: dict) -> None:
             stats[winner]["PNT"] += 2
             stats[loser]["PNT"] += 1
 
-    elif hs > aws:
-        winner, loser = home, away
-        stats[winner]["W"] += 1
-        stats[loser]["L"] += 1
-        if third_place:
-            stats[winner]["PNT"] += 1
-        else:
-            stats[winner]["PNT"] += 3
-            stats[loser]["PNT"] += (1 if aet else 0)
-
-    elif aws > hs:
-        winner, loser = away, home
+    elif hs != aws:
+        winner, loser = (home, away) if hs > aws else (away, home)
         stats[winner]["W"] += 1
         stats[loser]["L"] += 1
         if third_place:
