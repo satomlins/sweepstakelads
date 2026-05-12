@@ -108,7 +108,6 @@ def _matches_to_fixtures_df(matches: list[dict]) -> pd.DataFrame:
             {
                 "DatetimeUTC": dt_utc.strftime("%Y-%m-%dT%H:%M:%S") if dt_utc else "",
                 "Date": str(m["date"]) if m["date"] else "",
-                "Time": m["time"],
                 "Home": m["home_team"],
                 "Score": score + annotation,
                 "Away": m["away_team"],

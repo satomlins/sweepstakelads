@@ -158,7 +158,7 @@ def knockout_matches(group_standings: dict) -> list[dict]:
                 "status": "finished",
             })
         else:
-            qf_teams.append(f"Winner of Match {89 + i}")
+            qf_teams.append(f"Winner of R16 M{i + 1}")
             matches.append({
                 "date": str(base_r16 + timedelta(days=i // 4)),
                 "time": TIMES[i % len(TIMES)],
@@ -210,7 +210,6 @@ def matches_to_fixtures(matches: list[dict]) -> pd.DataFrame:
         rows.append({
             "DatetimeUTC": dt_utc,
             "Date": m["date"],
-            "Time": m["time"],
             "Home": m["home_team"],
             "Score": score,
             "Away": m["away_team"],

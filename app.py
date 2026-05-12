@@ -1,3 +1,4 @@
+import logging
 import pandas as pd
 import dash
 from dash import dcc, html, dash_table
@@ -7,6 +8,8 @@ from datetime import datetime as _dt, timezone as _tz, timedelta
 
 from tournament import get_data, load_draw
 from scoring import compute_third_place_table
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -208,7 +211,10 @@ def _fmt_local(dt_utc_str: str, tz_minutes: int) -> tuple[str, str]:
         dt = _dt.fromisoformat(dt_utc_str).replace(tzinfo=_tz.utc)
         local = dt + timedelta(minutes=tz_minutes)
         return local.strftime("%-d %b"), local.strftime("%H:%M")
+    except (ValueError, TypeError):
+        return "", ""
     except Exception:
+        logger.exception("Unexpected error formatting datetime %r", dt_utc_str)
         return "", ""
 
 
@@ -251,10 +257,27 @@ def _make_table(
         columns=[{"name": col_labels.get(c, c), "id": c, "hideable": False} for c in columns],
         style_header=HEADER,
         style_data=cell,
-        style_cell_conditional=_numeric_align(NUMERIC_COLS),
+        style_cell_conditional=_NUMERIC_ALIGN,
         sort_action="native" if sort else "none",
         style_table={"overflowX": "auto"},
     )
+
+
+# ---------------------------------------------------------------------------
+# Pre-computed style constants (deterministic — no per-request inputs)
+# ---------------------------------------------------------------------------
+
+_NUMERIC_ALIGN   = _numeric_align(NUMERIC_COLS)
+_PERSON_FMT      = _NUMERIC_ALIGN + _person_stripe_rules("Who") + _person_row_colour_rules()
+_TEAM_ROW_COLOUR = _team_row_colour_rules()
+_WHO_COL_COLOUR  = _owner_col_colour_rules("Who")
+_FIXTURE_OWNER_FMT = (
+    _owner_col_colour_rules("HomeOwner") + _owner_col_colour_rules("AwayOwner")
+)
+_TP_DIM_RULES = [
+    {"if": {"row_index": i}, "color": "var(--text-faint)", "opacity": "0.6"}
+    for i in range(8, 12)
+]
 
 
 # ---------------------------------------------------------------------------
@@ -558,19 +581,12 @@ def update_all(n, tz_offset_minutes):
     fixtures     = data["fixtures"].copy()
     fixtures["Match"] = range(1, len(fixtures) + 1)
 
-    # Person table: stripe + full row text colour
-    person_fmt = (
-        _numeric_align(NUMERIC_COLS)
-        + _person_stripe_rules("Who")
-        + _person_row_colour_rules()
-    )
-
-    # Team table: row colour + stripes + eliminated
+    # Team table: row colour + stripes + eliminated (draw-dependent parts stay in callback)
     team_fmt = (
-        _numeric_align(NUMERIC_COLS)
+        _NUMERIC_ALIGN
         + _team_stripe_rules(draw, "Team")
         + _who_stripe_rules(draw, "Who")
-        + _team_row_colour_rules()
+        + _TEAM_ROW_COLOUR
         + [_eliminated_rule()]
     )
 
@@ -596,10 +612,10 @@ def update_all(n, tz_offset_minutes):
             gdf = gdf.copy()
             gdf["Who"] = ""
         gfmt = (
-            _numeric_align(NUMERIC_COLS)
+            _NUMERIC_ALIGN
             + _team_stripe_rules(draw, "Team")
             + _group_colour_rules(draw)
-            + _owner_col_colour_rules("Who")
+            + _WHO_COL_COLOUR
         )
         cell = {**CELL, "padding": "5px 6px", "fontSize": "12px"}
         hdr  = {**HEADER, "padding": "8px 6px"}
@@ -620,7 +636,7 @@ def update_all(n, tz_offset_minutes):
                         columns=[{"name": c, "id": c} for c in group_cols],
                         style_header=hdr,
                         style_data=cell,
-                        style_cell_conditional=_numeric_align(NUMERIC_COLS) + group_col_widths,
+                        style_cell_conditional=_NUMERIC_ALIGN + group_col_widths,
                         style_data_conditional=gfmt,
                         style_table={"overflowX": "hidden"},
                     ),
@@ -638,25 +654,18 @@ def update_all(n, tz_offset_minutes):
         tp_df = tp_df.copy()
         tp_df["Who"] = ""
     tp_fmt = (
-        _numeric_align(NUMERIC_COLS)
+        _NUMERIC_ALIGN
         + _team_stripe_rules(draw, "Team")
         + _group_colour_rules(draw)
-        + _owner_col_colour_rules("Who")
-        + [
-            {"if": {"row_index": i}, "color": "var(--text-faint)", "opacity": "0.6"}
-            for i in range(8, 12)
-        ]
+        + _WHO_COL_COLOUR
+        + _TP_DIM_RULES
     )
     tp_data = tp_df[_THIRD_COLS].to_dict("records") if not tp_df.empty else []
 
     # Fixture formatting shared across result/upcoming tables
-    owner_colour_rules = (
-        _owner_col_colour_rules("HomeOwner")
-        + _owner_col_colour_rules("AwayOwner")
-    )
     fixture_colours = _fixture_colour_rules(draw)
     fixture_stripes = _team_stripe_rules(draw, "Home") + _team_stripe_rules(draw, "Away")
-    fixture_fmt = fixture_stripes + fixture_colours + owner_colour_rules
+    fixture_fmt = fixture_stripes + fixture_colours + _FIXTURE_OWNER_FMT
 
     # Recent results (home page — last 10, newest first)
     finished = fixtures[fixtures["Status"] == "Finished"].tail(10).iloc[::-1]
@@ -689,9 +698,9 @@ def update_all(n, tz_offset_minutes):
 
     return (
         person_table.to_dict("records"),
-        person_fmt,
+        _PERSON_FMT,
         person_table.to_dict("records"),
-        person_fmt,
+        _PERSON_FMT,
         team_table.to_dict("records"),
         team_fmt,
         group_children,

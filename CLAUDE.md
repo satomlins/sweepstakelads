@@ -58,6 +58,7 @@ Strict separation of concerns — each module has one job:
 - `compute_group_standings(matches)` → dict of `{group_letter: DataFrame}`
 - `compute_third_place_table(group_standings)` → DataFrame of all 12 third-place teams sorted PNT→GD→GS; top 8 advance to the knockout stage
 - Scoring rules: regular win 3/0, AET win 3/1 (GD counts), pens 2/1 (GD not counted), group draw 1/1, third-place match 1/0
+- `_apply_match` handles: penalty shootout; regular/AET win (single branch — winner determined by `hs > aws`); draw
 - `compute_team_table` seeds team rows from group-stage matches only — knockout placeholder names like "Winner of Match X" are intentionally excluded
 
 **`tournament.py`** — orchestration + caching:
@@ -66,7 +67,7 @@ Strict separation of concerns — each module has one job:
 - `load_draw()` — reads `assets/draw_2026.csv` (Who, Team); returns empty DataFrame if not yet populated
 - Cache TTL: 5 minutes. Cache files: `assets/teamtable.csv`, `assets/persontable.csv`, `assets/fixtures.csv`, `assets/group_standings.json`, `assets/last_updated.txt`
 - `refresh()` calls scraper → scoring → writes cache using **atomic temp-file writes** (`_atomic_write_csv`, `_atomic_write_json`, `_atomic_write_text`); `last_updated.txt` written last so a partial write shows as stale rather than corrupt; fixtures sorted ascending by `DatetimeUTC` before caching
-- `fixtures.csv` columns: `DatetimeUTC` (ISO 8601 UTC string), `Date`, `Time`, `Home`, `Score`, `Away`, `Stage`, `Status`
+- `fixtures.csv` columns: `DatetimeUTC` (ISO 8601 UTC string), `Date`, `Home`, `Score`, `Away`, `Stage`, `Status` — note: no `Time` column; `Time` is synthesised by `_localize_fixtures` in `app.py` at render time from `DatetimeUTC`
 - CLI entrypoint: `python -m tournament [--cache]`
 
 **`app.py`** — Dash layout + callbacks only, no business logic:
@@ -75,8 +76,9 @@ Strict separation of concerns — each module has one job:
 - **Page: Leaderboard** — person leaderboard + team table (sortable)
 - **Page: Fixtures & Results** — 12 group mini-tables + third-place standings table + knockout stage + all results + all upcoming fixtures
 - Single callback `update_all` fires on `dcc.Interval` (5 min) and on `tz-offset` store change
-- **Timezone handling**: browser offset detected via clientside callback (`-new Date().getTimezoneOffset()` → `dcc.Store(id="tz-offset")`); `_localize_fixtures(df, tz_minutes)` converts `DatetimeUTC` → local date + time for display; `DatetimeUTC` is the single source of truth — dates shift correctly across timezones (e.g. a late-night UTC-7 match shows as next-day for UK users); header shows "All times UTC+X" label
+- **Timezone handling**: browser offset detected via clientside callback (`-new Date().getTimezoneOffset()` → `dcc.Store(id="tz-offset")`); `_localize_fixtures(df, tz_minutes)` synthesises `Date` and `Time` columns from `DatetimeUTC` — `Time` is not stored in the CSV; `DatetimeUTC` is the single source of truth — dates shift correctly across timezones (e.g. a late-night UTC-7 match shows as next-day for UK users); header shows "All times UTC+X" label
 - **Match numbers**: `fixtures["Match"] = range(1, len(fixtures) + 1)` applied globally in `update_all` after loading (sequential by chronological sort order, 1-indexed)
+- **Pre-computed style constants** at module scope: `_NUMERIC_ALIGN`, `_PERSON_FMT`, `_TEAM_ROW_COLOUR`, `_WHO_COL_COLOUR`, `_FIXTURE_OWNER_FMT`, `_TP_DIM_RULES` — deterministic rules built once; draw-dependent rules (`_team_stripe_rules`, `_fixture_colour_rules`, `_group_colour_rules`) are still built inside the callback
 - Column sets (constants at top of file):
   - `_RESULT_COLS` = `[Date, Time, HomeOwner, Home, Score, Away, AwayOwner, Stage]`
   - `_FIXTURE_COLS` = `[Match, Date, Time, HomeOwner, Home, Away, AwayOwner, Stage]`
@@ -96,7 +98,7 @@ Strict separation of concerns — each module has one job:
 
 **`dev_seed.py`** — generates fake match data for UI development:
 - Writes all cache files and sets `last_updated.txt` 24 hours ahead (prevents auto-refresh)
-- `knockout_matches` generates: R32 all finished → R16 first 4 finished + last 4 upcoming → QF 4 upcoming with cross-bracket pairing (each QF has one known team + one "Winner of Match X" placeholder)
+- `knockout_matches` generates: R32 all finished → R16 first 4 finished + last 4 upcoming → QF 4 upcoming with cross-bracket pairing (each QF has one known team + one "Winner of R16 MN" placeholder)
 - `matches_to_fixtures` adds `DatetimeUTC` column and sorts ascending before writing CSV
 
 ## Participants and colours
