@@ -177,7 +177,9 @@ In the repository settings → Secrets → Actions:
 | Secret name | Value |
 |---|---|
 | `ORACLE_DEPLOY_KEY` | Contents of `~/.ssh/sweepstakelads_deploy` (the private key) |
-| `ORACLE_HOST` | The Oracle instance IP or hostname |
+| `ORACLE_HOST` | The Oracle instance **public** IP (currently `79.72.78.54`) — not the Tailscale IP, since GitHub Actions runners can't reach the Tailscale network |
+
+**Security note:** SSH (port 22) must be open to the public internet on Oracle's VCN Security List. This is acceptable because: the forced command means even a leaked key can only trigger `deploy.sh`; ed25519 key-only auth (no password); and the deploy script is idempotent. Risk is bot scan noise in journalctl, not real compromise.
 
 ## Rollback
 
