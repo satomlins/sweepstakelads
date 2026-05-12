@@ -347,45 +347,36 @@ Worth documenting in `docs/DEPLOY_PLAN.md`.
 
 ---
 
-## Phase 5 — Code tidy-up (low priority) ← START HERE NEXT
+## Phase 5 — Code tidy-up ✅ COMPLETE (2026-05-12)
 
-Phases 1–4 are complete. Phase 5 is safe to do now.
+### 5.1 Hoist deterministic style rules ✅
 
-### 5.1 Hoist deterministic style rules
+Moved `_NUMERIC_ALIGN`, `_PERSON_FMT`, `_TEAM_ROW_COLOUR`, `_WHO_COL_COLOUR`,
+`_FIXTURE_OWNER_FMT`, and `_TP_DIM_RULES` to module scope in `app.py`. Only
+draw-dependent rules (`_team_stripe_rules`, `_fixture_colour_rules`,
+`_group_colour_rules`) remain inside the callback.
 
-`app.py:540-555` rebuilds the same style-rule dicts on every callback. The
-`COLOURS`-dependent rules (`_person_stripe_rules`, `_person_row_colour_rules`,
-`_team_row_colour_rules`, `_numeric_align(NUMERIC_COLS)`) are constants. Move
-them to module scope; only `_team_stripe_rules(draw, …)` and friends need to
-stay in the callback (they depend on the draw).
+### 5.2 Drop the unused `Time` column from `fixtures.csv` ✅
 
-### 5.2 Drop the unused `Time` column from `fixtures.csv`
+Removed from `tournament.py` and `dev_seed.py`. `DatetimeUTC` is the single
+source of truth; `_localize_fixtures` synthesises `Time` at render time.
 
-`tournament.py:69-96` writes the raw Wikipedia time string (e.g.
-"1:00 p.m. UTC−6"); `app.py:_localize_fixtures` overwrites it on every render
-from `DatetimeUTC`. Column is dead — remove from the CSV schema and from
-`_RESULT_COLS` / `_FIXTURE_COLS` formats. (Tests in Phase 3 should cover this
-before changing.)
+### 5.3 Tighten error handling ✅
 
-### 5.3 Tighten error handling
+`_fmt_local` now catches `(ValueError, TypeError)` explicitly; anything else
+is logged via `logger.exception` before returning `("", "")`.
 
-`app.py:201-210` `_fmt_local` catches bare `Exception`. Narrow to
-`(ValueError, TypeError)` and log anything else — silent empty times is
-worse than a stack trace.
+### 5.4 Fix dev_seed placeholder match numbers ✅
 
-### 5.4 Fix dev_seed placeholder match numbers
+Changed `"Winner of Match {89 + i}"` to `"Winner of R16 M{i + 1}"` — labels
+now match what the app displays and don't depend on a fragile chronological
+offset.
 
-`dev_seed.py:161` emits `Winner of Match {89 + i}` but match numbers in the
-app are computed from chronological sort order, not this offset. Either
-compute the real number from the sorted fixture list, or use a non-numeric
-placeholder ("Winner of QF1 / R16 M5", etc.) — current value is misleading.
+### 5.5 Consolidate `_apply_match` ✅
 
-### 5.5 Consolidate `_apply_match`
-
-`scoring.py:23-83` has duplicate `hs > aws` / `aws > hs` branches. Refactor
-to a single winner-determination step + a points-table dict keyed on
-(third_place, aet, via_penalties). Pure refactor — tests in 3.3 must pass
-unchanged.
+Collapsed the duplicate `hs > aws` / `aws > hs` branches into a single
+`elif hs != aws:` branch with `winner, loser = (home, away) if hs > aws else
+(away, home)`. All 44 tests pass unchanged.
 
 ---
 
