@@ -24,12 +24,6 @@ jobs:
       - uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.ORACLE_DEPLOY_KEY }}
-      - name: Join Tailscale network
-        uses: tailscale/github-action@v2
-        with:
-          oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
-          tags: tag:ci
       - name: Deploy to Oracle
         run: |
           ssh -o StrictHostKeyChecking=accept-new \
