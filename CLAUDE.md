@@ -44,7 +44,7 @@ Strict separation of concerns — each module has one job:
 - Parses `{{footballbox}}` / `{{footballbox collapsible}}` templates
 - Returns a flat list of match dicts with keys: `date`, `time`, `datetime_utc`, `home_team`, `away_team`, `home_score`, `away_score`, `pen_home`, `pen_away`, `aet`, `stage`, `status`
 - `datetime_utc` is a `datetime` object in UTC parsed from Wikipedia's "H:MM a.m./p.m. UTC±N" format (handles Unicode minus U+2212 and `<includeonly>` HTML tags); `None` if unparseable
-- Pages scraped: 12 individual group pages (`2026 FIFA World Cup Group A` … `Group L`) + `2026 FIFA World Cup knockout stage`
+- Pages scraped: 12 individual group pages (`2026 FIFA World Cup Group A` … `Group L`) + `2026 FIFA World Cup knockout stage` + `2026 FIFA World Cup final` (separate Wikipedia page; uses `stage_override="Final"` since the page's own heading is `==Match==`)
 - Future knockout rounds appear with placeholder team names (e.g. "Winner of Match 57") — the scraper passes these through as-is after stripping wikitext markup
 - Uses `logging` (module-level `logger`); partial failures logged as `logger.warning`
 
