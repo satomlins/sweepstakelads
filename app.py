@@ -2,7 +2,7 @@ import logging
 import pandas as pd
 import dash
 from dash import dcc, html, dash_table
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 from dash_iconify import DashIconify
 from datetime import datetime as _dt, timezone as _tz, timedelta
 
@@ -301,6 +301,7 @@ app.layout = html.Div(
         dcc.Location(id="url", refresh=False),
         dcc.Interval(id="interval", interval=5 * 60 * 1000),
         dcc.Store(id="tz-offset", data=None),
+        dcc.Store(id="show-goals", data=False),
 
         html.Main(
             [
@@ -478,9 +479,20 @@ app.layout = html.Div(
                 # Footer
                 html.Footer(
                     [
-                        html.Span(
-                            f"© {pd.Timestamp.now().year} Sweepstakelads · website by Scott Tomlins",
-                            style={"color": "var(--text-faint)", "fontSize": "11px"},
+                        html.Div(
+                            [
+                                html.Span(
+                                    f"© {pd.Timestamp.now().year} Sweepstakelads · website by Scott Tomlins",
+                                    style={"color": "var(--text-faint)", "fontSize": "11px"},
+                                ),
+                                html.Button(
+                                    "Show GS/GA",
+                                    id="goals-toggle",
+                                    n_clicks=0,
+                                    className="goals-toggle-btn",
+                                ),
+                            ],
+                            style={"display": "flex", "alignItems": "center", "gap": "16px"},
                         ),
                         html.Div(
                             [
@@ -556,30 +568,57 @@ def switch_page(pathname):
 
 
 @app.callback(
-    Output("person-table",     "data"),
-    Output("person-table",     "style_data_conditional"),
-    Output("person-table-lb",  "data"),
-    Output("person-table-lb",  "style_data_conditional"),
-    Output("team-table",       "data"),
-    Output("team-table",       "style_data_conditional"),
+    Output("show-goals",      "data"),
+    Output("goals-toggle",    "children"),
+    Input("goals-toggle",     "n_clicks"),
+    State("show-goals",       "data"),
+    prevent_initial_call=True,
+)
+def toggle_goals(_n, current):
+    show = not current
+    return show, "Hide GS/GA" if show else "Show GS/GA"
+
+
+@app.callback(
+    Output("person-table",       "data"),
+    Output("person-table",       "style_data_conditional"),
+    Output("person-table",       "columns"),
+    Output("person-table-lb",    "data"),
+    Output("person-table-lb",    "style_data_conditional"),
+    Output("person-table-lb",    "columns"),
+    Output("team-table",         "data"),
+    Output("team-table",         "style_data_conditional"),
+    Output("team-table",         "columns"),
     Output("group-tables",       "children"),
     Output("third-place-table",  "data"),
     Output("third-place-table",  "style_data_conditional"),
-    Output("recent-table",     "data"),
-    Output("recent-table",     "style_data_conditional"),
-    Output("upcoming-table",   "data"),
-    Output("upcoming-table",   "style_data_conditional"),
+    Output("third-place-table",  "columns"),
+    Output("recent-table",       "data"),
+    Output("recent-table",       "style_data_conditional"),
+    Output("upcoming-table",     "data"),
+    Output("upcoming-table",     "style_data_conditional"),
     Output("all-results-table",  "data"),
     Output("all-results-table",  "style_data_conditional"),
     Output("all-upcoming-table", "data"),
     Output("all-upcoming-table", "style_data_conditional"),
-    Output("tz-label",         "children"),
-    Output("last-updated",     "children"),
-    Input("interval", "n_intervals"),
-    Input("tz-offset", "data"),
+    Output("tz-label",           "children"),
+    Output("last-updated",       "children"),
+    Input("interval",   "n_intervals"),
+    Input("tz-offset",  "data"),
+    Input("show-goals", "data"),
 )
-def update_all(n, tz_offset_minutes):
+def update_all(n, tz_offset_minutes, show_goals_data):
     tz_minutes = tz_offset_minutes if tz_offset_minutes is not None else 0
+    show_goals = bool(show_goals_data)
+    _skip = set() if show_goals else {"GS", "GA"}
+
+    def _cols(names):
+        return [{"name": c, "id": c, "hideable": False} for c in names]
+
+    person_cols  = [c for c in _PERSON_COLS  if c not in _skip]
+    team_cols    = [c for c in _TEAM_COLS    if c not in _skip]
+    third_cols   = [c for c in _THIRD_COLS   if c not in _skip]
+
     data = get_data()
     draw = load_draw()
 
@@ -611,6 +650,7 @@ def update_all(n, tz_offset_minutes):
 
     # Group tables
     group_cols = ["Team", "Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
+    g_cols = [c for c in group_cols if c not in _skip]
     group_children = []
     for g in sorted(group_standings.keys()):
         gdf = group_standings[g]
@@ -641,8 +681,8 @@ def update_all(n, tz_offset_minutes):
                 [
                     html.P(f"Group {g}", style=GROUP_LABEL),
                     dash_table.DataTable(
-                        data=gdf[group_cols].to_dict("records") if not gdf.empty else [],
-                        columns=[{"name": c, "id": c} for c in group_cols],
+                        data=gdf[g_cols].to_dict("records") if not gdf.empty else [],
+                        columns=[{"name": c, "id": c} for c in g_cols],
                         style_header=hdr,
                         style_data=cell,
                         style_cell_conditional=_NUMERIC_ALIGN + group_col_widths,
@@ -669,7 +709,7 @@ def update_all(n, tz_offset_minutes):
         + _WHO_COL_COLOUR
         + _TP_DIM_RULES
     )
-    tp_data = tp_df[_THIRD_COLS].to_dict("records") if not tp_df.empty else []
+    tp_data = tp_df[third_cols].to_dict("records") if not tp_df.empty else []
 
     # Fixture formatting shared across result/upcoming tables
     fixture_colours = _fixture_colour_rules(draw)
@@ -699,13 +739,17 @@ def update_all(n, tz_offset_minutes):
     return (
         person_table.to_dict("records"),
         _PERSON_FMT,
+        _cols(person_cols),
         person_table.to_dict("records"),
         _PERSON_FMT,
+        _cols(person_cols),
         team_table.to_dict("records"),
         team_fmt,
+        _cols(team_cols),
         group_children,
         tp_data,
         tp_fmt,
+        _cols(third_cols),
         recent_out.to_dict("records"),
         fixture_fmt,
         upcoming_out.to_dict("records"),
@@ -715,7 +759,7 @@ def update_all(n, tz_offset_minutes):
         all_upcoming_out.to_dict("records"),
         fixture_fmt,
         _tz_label(tz_minutes),
-        "Last updated: {} {} {}".format(*_fmt_local(timestamp, tz_minutes), _tz_label(tz_minutes).replace("All times ", "")),
+        "Last updated: {} {}".format(*_fmt_local(timestamp, tz_minutes)),
     )
 
 
