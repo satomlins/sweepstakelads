@@ -55,7 +55,8 @@ Strict separation of concerns — each module has one job:
 - `compute_third_place_table(group_standings)` → DataFrame of all 12 third-place teams sorted PNT→GD→GS; top 8 advance to the knockout stage
 - Scoring rules: regular win 3/0, AET win 3/1 (GD counts), pens 2/1 (GD not counted), group draw 1/1, third-place match 1/0
 - `_apply_match` handles: penalty shootout; regular/AET win (single branch — winner determined by `hs > aws`); draw
-- `compute_team_table` seeds team rows from group-stage matches only — knockout placeholder names like "Winner of Match X" are intentionally excluded
+- `compute_team_table` seeds team rows from group-stage matches only — knockout placeholder names like "Winner of Match X" are intentionally excluded; unowned teams get `Who = ""` (not `"TBC"`)
+- `compute_person_table` filters out any row where `Who == ""` — unowned teams are excluded from the person leaderboard entirely
 
 **`tournament.py`** — orchestration + caching:
 - `get_data(force_refresh=False)` — main entry point for `app.py`; on first start (no cache) blocks on `refresh()`; otherwise returns cached data immediately and fires a **background refresh** via `threading.Thread(daemon=True)` if cache is stale — UI render is always ~5 ms
@@ -67,10 +68,11 @@ Strict separation of concerns — each module has one job:
 - CLI entrypoint: `python -m tournament [--cache]`
 
 **`app.py`** — Dash layout + callbacks only, no business logic:
-- Three-tab navigation (Home / Leaderboard / Fixtures & Results) using `dcc.Location` URL routing; active tab highlighted by CSS class
-- **Page: Home** — person leaderboard (full width) + recent results / upcoming fixtures side-by-side
+- Four-tab navigation (Home / Leaderboard / Results & Fixtures / Group Stages) using `dcc.Location` URL routing; active tab highlighted by CSS class
+- **Page: Home** — person leaderboard (full width) + recent results / upcoming fixtures side-by-side (upcoming shows no Match column)
 - **Page: Leaderboard** — person leaderboard + team table (sortable)
-- **Page: Fixtures & Results** — 12 group mini-tables + third-place standings table + knockout stage + all results + all upcoming fixtures
+- **Page: Results & Fixtures** — all results + all upcoming fixtures (section heading "Fixtures", not "Upcoming Fixtures"; no knockout section — redundant with full fixture list)
+- **Page: Group Stages** — 12 group mini-tables + third-place standings table
 - Single callback `update_all` fires on `dcc.Interval` (5 min) and on `tz-offset` store change
 - **Timezone handling**: browser offset detected via clientside callback (`-new Date().getTimezoneOffset()` → `dcc.Store(id="tz-offset")`); `_localize_fixtures(df, tz_minutes)` synthesises `Date` and `Time` columns from `DatetimeUTC` — `Time` is not stored in the CSV; `DatetimeUTC` is the single source of truth — dates shift correctly across timezones (e.g. a late-night UTC-7 match shows as next-day for UK users); header shows "All times UTC+X" label
 - **Match numbers**: `fixtures["Match"] = range(1, len(fixtures) + 1)` applied globally in `update_all` after loading (sequential by chronological sort order, 1-indexed)
@@ -78,7 +80,7 @@ Strict separation of concerns — each module has one job:
 - Column sets (constants at top of file):
   - `_RESULT_COLS` = `[Date, Time, HomeOwner, Home, Score, Away, AwayOwner, Stage]`
   - `_FIXTURE_COLS` = `[Match, Date, Time, HomeOwner, Home, Away, AwayOwner, Stage]`
-  - `_KO_COLS` = `[Match, Stage, HomeOwner, Home, Score, Away, AwayOwner]`
+  - `_HOME_UPCOMING_COLS` = `[Date, Time, HomeOwner, Home, Away, AwayOwner, Stage]` (no Match — home page only)
   - `_THIRD_COLS` = `[Group, Team, Who, PL, W, D, L, GS, GA, GD, PNT]`
 - **Third-place standings**: computed from `compute_third_place_table(group_standings)` in callback; top 8 rows are normal weight, bottom 4 rows dimmed (opacity 0.6, `var(--text-faint)`) to indicate non-qualifiers
 - Owner identity: left-border stripe on name cell + full row text colour (leaderboard/teams); injected owner column coloured by owner (groups/fixtures); unknown teams (e.g. "Winner of Match X") show blank owner column
@@ -91,6 +93,7 @@ Strict separation of concerns — each module has one job:
 - System font stack (no Google Fonts); `ui-monospace` for numeric columns
 - Tab navigation styles: `.tab-nav`, `.tab-link`, `.tab-link.active`
 - Page fade-in animation, row hover, responsive breakpoints at 768px / 480px
+- Mobile breakpoints also tighten `.tab-link` (font/padding) and add `overflow-x: auto` + scrollbar suppression on `.tab-nav` so the four-tab nav fits on phones
 
 ## Participants and colours
 

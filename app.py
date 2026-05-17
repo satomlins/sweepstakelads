@@ -78,10 +78,10 @@ GROUP_LABEL = {
 
 _PERSON_COLS  = ["Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
 _TEAM_COLS    = ["Team", "Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
-_RESULT_COLS  = ["Date", "Time", "HomeOwner", "Home", "Score", "Away", "AwayOwner", "Stage"]
-_FIXTURE_COLS = ["Match", "Date", "Time", "HomeOwner", "Home", "Away", "AwayOwner", "Stage"]
-_KO_COLS      = ["Match", "Stage", "HomeOwner", "Home", "Score", "Away", "AwayOwner"]
-_OWNER_LABELS = {"HomeOwner": "", "AwayOwner": ""}
+_RESULT_COLS        = ["Date", "Time", "HomeOwner", "Home", "Score", "Away", "AwayOwner", "Stage"]
+_FIXTURE_COLS       = ["Match", "Date", "Time", "HomeOwner", "Home", "Away", "AwayOwner", "Stage"]
+_HOME_UPCOMING_COLS = ["Date", "Time", "HomeOwner", "Home", "Away", "AwayOwner", "Stage"]
+_OWNER_LABELS       = {"HomeOwner": "", "AwayOwner": ""}
 _THIRD_COLS   = ["Group", "Team", "Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
 
 
@@ -361,7 +361,8 @@ app.layout = html.Div(
                     [
                         dcc.Link("Home",                href="/",            id="tab-home",       className="tab-link"),
                         dcc.Link("Leaderboard",         href="/leaderboard", id="tab-leaderboard", className="tab-link"),
-                        dcc.Link("Fixtures & Results",  href="/fixtures",    id="tab-fixtures",    className="tab-link"),
+                        dcc.Link("Results & Fixtures",  href="/fixtures",    id="tab-fixtures",    className="tab-link"),
+                        dcc.Link("Group Stages",        href="/groups",      id="tab-groups",      className="tab-link"),
                     ],
                     className="tab-nav",
                 ),
@@ -389,7 +390,7 @@ app.layout = html.Div(
                                 html.Div(
                                     [
                                         html.H3("Upcoming fixtures", style=SECTION_LABEL),
-                                        _make_table("upcoming-table", _FIXTURE_COLS, col_labels=_OWNER_LABELS),
+                                        _make_table("upcoming-table", _HOME_UPCOMING_COLS, col_labels=_OWNER_LABELS),
                                     ],
                                     className="six columns",
                                 ),
@@ -421,7 +422,7 @@ app.layout = html.Div(
                     style={"display": "none"},
                 ),
 
-                # ── Page: Fixtures & Results ──────────────────────────────
+                # ── Page: Group Stage ─────────────────────────────────────
                 html.Div(
                     [
                         html.Div(
@@ -446,24 +447,23 @@ app.layout = html.Div(
                             ],
                             className="section-gap",
                         ),
-                        html.Div(
-                            [
-                                html.H3("Knockout stage", style=SECTION_LABEL),
-                                _make_table("knockout-table", _KO_COLS, col_labels=_OWNER_LABELS),
-                            ],
-                            id="knockout-section",
-                            className="section-gap",
-                        ),
+                    ],
+                    id="page-groups",
+                    style={"display": "none"},
+                ),
+
+                # ── Page: Fixtures & Results ──────────────────────────────
+                html.Div(
+                    [
                         html.Div(
                             [
                                 html.H3("Results", style=SECTION_LABEL),
                                 _make_table("all-results-table", _RESULT_COLS, col_labels=_OWNER_LABELS),
                             ],
-                            className="section-gap",
                         ),
                         html.Div(
                             [
-                                html.H3("Upcoming fixtures", style=SECTION_LABEL),
+                                html.H3("Fixtures", style=SECTION_LABEL),
                                 _make_table("all-upcoming-table", _FIXTURE_COLS, col_labels=_OWNER_LABELS),
                             ],
                             className="section-gap",
@@ -531,9 +531,11 @@ app.clientside_callback(
 @app.callback(
     Output("tab-home",        "className"),
     Output("tab-leaderboard", "className"),
+    Output("tab-groups",      "className"),
     Output("tab-fixtures",    "className"),
     Output("page-home",        "style"),
     Output("page-leaderboard", "style"),
+    Output("page-groups",      "style"),
     Output("page-fixtures",    "style"),
     Input("url", "pathname"),
 )
@@ -543,10 +545,12 @@ def switch_page(pathname):
     active   = "tab-link active"
     inactive = "tab-link"
     if pathname == "/leaderboard":
-        return inactive, active, inactive, hide, show, hide
+        return inactive, active, inactive, inactive, hide, show, hide, hide
+    if pathname == "/groups":
+        return inactive, inactive, active, inactive, hide, hide, show, hide
     if pathname == "/fixtures":
-        return inactive, inactive, active, hide, hide, show
-    return active, inactive, inactive, show, hide, hide
+        return inactive, inactive, inactive, active, hide, hide, hide, show
+    return active, inactive, inactive, inactive, show, hide, hide, hide
 
 
 @app.callback(
@@ -563,8 +567,6 @@ def switch_page(pathname):
     Output("recent-table",     "style_data_conditional"),
     Output("upcoming-table",   "data"),
     Output("upcoming-table",   "style_data_conditional"),
-    Output("knockout-table",   "data"),
-    Output("knockout-table",   "style_data_conditional"),
     Output("all-results-table",  "data"),
     Output("all-results-table",  "style_data_conditional"),
     Output("all-upcoming-table", "data"),
@@ -692,15 +694,6 @@ def update_all(n, tz_offset_minutes):
     all_upcoming_loc = _localize_fixtures(all_upcoming, tz_minutes)
     all_upcoming_out = _add_owner_cols(all_upcoming_loc[["Match", "Date", "Time", "Home", "Away", "Stage"]])
 
-    # Knockout stage — Match column already populated globally above
-    group_mask = fixtures["Stage"].str.startswith("Group", na=False)
-    ko = fixtures[~group_mask].copy()
-    if not ko.empty:
-        ko_out = _add_owner_cols(ko[["Match", "Stage", "Home", "Score", "Away"]])
-        ko_data = ko_out[["Match", "Stage", "HomeOwner", "Home", "Score", "Away", "AwayOwner"]].to_dict("records")
-    else:
-        ko_data = []
-
     return (
         person_table.to_dict("records"),
         _PERSON_FMT,
@@ -714,8 +707,6 @@ def update_all(n, tz_offset_minutes):
         recent_out.to_dict("records"),
         fixture_fmt,
         upcoming_out.to_dict("records"),
-        fixture_fmt,
-        ko_data,
         fixture_fmt,
         all_results_out.to_dict("records"),
         fixture_fmt,

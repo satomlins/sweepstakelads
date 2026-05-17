@@ -287,10 +287,33 @@ a:visited {
   .groups-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .tab-link {
+    padding: 10px 12px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
 }
 
 @media screen and (max-width: 480px) {
   .groups-grid {
     grid-template-columns: 1fr;
+  }
+
+  .tab-nav {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .tab-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-link {
+    padding: 10px 10px;
+    font-size: 10px;
+    letter-spacing: 0.03em;
   }
 }

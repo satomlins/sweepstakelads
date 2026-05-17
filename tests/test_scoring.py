@@ -131,7 +131,7 @@ def test_team_table_empty_draw():
     matches = [_match("Mexico", "France", 1, 0)]
     df = compute_team_table(draw, matches)
     assert len(df) == 2
-    assert all(df["Who"] == "TBC")
+    assert all(df["Who"] == "")
 
 
 def test_team_table_in_out_flag():
@@ -170,6 +170,7 @@ def test_person_table_sums_by_owner():
     ]
     team_df = compute_team_table(draw, matches)
     person_df = compute_person_table(team_df)
+    assert "" not in person_df["Who"].values
     alice = person_df[person_df["Who"] == "Alice"].iloc[0]
     bob = person_df[person_df["Who"] == "Bob"].iloc[0]
     assert alice["PNT"] == 6  # Mexico 3 + France 3
@@ -180,6 +181,18 @@ def test_person_table_empty():
     df = compute_person_table(pd.DataFrame())
     assert list(df.columns) == ["Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
     assert len(df) == 0
+
+
+def test_person_table_excludes_unowned():
+    draw = pd.DataFrame({"Who": ["Alice", "Bob"], "Team": ["Mexico", "France"]})
+    matches = [
+        _match("Mexico", "France", 2, 1),
+        _match("Brazil", "Germany", 1, 0),  # unowned teams
+    ]
+    team_df = compute_team_table(draw, matches)
+    person_df = compute_person_table(team_df)
+    assert len(person_df) == 2
+    assert set(person_df["Who"]) == {"Alice", "Bob"}
 
 
 # ---------------------------------------------------------------------------
