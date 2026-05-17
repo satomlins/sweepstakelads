@@ -129,9 +129,9 @@ def compute_team_table(draw: pd.DataFrame, matches: list[dict]) -> pd.DataFrame:
     # Merge draw ownership
     if not draw.empty:
         df = df.merge(draw[["Team", "Who"]], on="Team", how="left")
-        df["Who"] = df["Who"].fillna("TBC")
+        df["Who"] = df["Who"].fillna("")
     else:
-        df["Who"] = "TBC"
+        df["Who"] = ""
 
     # In/Out: "In" if the team has any non-finished match remaining
     in_teams: set[str] = set()
@@ -241,6 +241,7 @@ def compute_person_table(team_table: pd.DataFrame) -> pd.DataFrame:
         .sum()
         .reset_index()
     )
+    agg = agg[agg["Who"] != ""]
     agg["GD"] = agg["GS"] - agg["GA"]
     agg = (
         agg[["Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]]
