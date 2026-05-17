@@ -133,6 +133,7 @@ GROUP_PAGES = [
     f"2026 FIFA World Cup Group {letter}" for letter in "ABCDEFGHIJKL"
 ]
 KNOCKOUT_PAGE = "2026 FIFA World Cup knockout stage"
+FINAL_PAGE = "2026 FIFA World Cup final"
 
 
 HEADERS = {
@@ -140,7 +141,7 @@ HEADERS = {
 }
 
 
-BATCH_TITLES = GROUP_PAGES + [KNOCKOUT_PAGE]
+BATCH_TITLES = GROUP_PAGES + [KNOCKOUT_PAGE, FINAL_PAGE]
 
 
 def fetch_all_wikitext() -> dict[str, str]:
@@ -373,6 +374,10 @@ def fetch_all_matches() -> list[dict]:
             group_matches = parse_matches(wikitext, stage_override=f"Group {group}")
             logger.info("%s: %d matches", title, len(group_matches))
             matches.extend(group_matches)
+        elif title == FINAL_PAGE:
+            final_matches = parse_matches(wikitext, stage_override="Final")
+            logger.info("%s: %d matches", title, len(final_matches))
+            matches.extend(final_matches)
         else:
             ko_matches = parse_matches(wikitext)
             logger.info("%s: %d matches", title, len(ko_matches))
