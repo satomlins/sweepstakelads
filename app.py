@@ -460,6 +460,34 @@ app.layout = html.Div(
                     [
                         html.Div(
                             [
+                                html.Label(
+                                    "FILTER",
+                                    htmlFor="owner-filter",
+                                    style={
+                                        "fontSize": "11px",
+                                        "fontWeight": "600",
+                                        "letterSpacing": "0.08em",
+                                        "textTransform": "uppercase",
+                                        "color": "var(--text-faint)",
+                                        "margin": "0 0 6px",
+                                        "display": "block",
+                                    },
+                                ),
+                                dcc.Dropdown(
+                                    id="owner-filter",
+                                    options=[{"label": name, "value": name} for name in COLOURS.keys()],
+                                    value=[],
+                                    multi=True,
+                                    placeholder="All",
+                                    clearable=True,
+                                    className="owner-filter",
+                                ),
+                            ],
+                            className="owner-filter-wrap",
+                            style={"marginBottom": "20px", "maxWidth": "240px"},
+                        ),
+                        html.Div(
+                            [
                                 html.H3("Results", style=SECTION_LABEL),
                                 _make_table("all-results-table", _RESULT_COLS, col_labels=_OWNER_LABELS),
                             ],
@@ -603,13 +631,15 @@ def toggle_goals(_n, current):
     Output("all-upcoming-table", "style_data_conditional"),
     Output("tz-label",           "children"),
     Output("last-updated",       "children"),
-    Input("interval",   "n_intervals"),
-    Input("tz-offset",  "data"),
-    Input("show-goals", "data"),
+    Input("interval",      "n_intervals"),
+    Input("tz-offset",     "data"),
+    Input("show-goals",    "data"),
+    Input("owner-filter",  "value"),
 )
-def update_all(n, tz_offset_minutes, show_goals_data):
+def update_all(n, tz_offset_minutes, show_goals_data, selected_owners):
     tz_minutes = tz_offset_minutes if tz_offset_minutes is not None else 0
     show_goals = bool(show_goals_data)
+    selected_owners = selected_owners or []
     _skip = set() if show_goals else {"GS", "GA"}
 
     def _cols(names):
@@ -730,11 +760,21 @@ def update_all(n, tz_offset_minutes, show_goals_data):
     all_finished = fixtures[fixtures["Status"] == "Finished"].iloc[::-1]
     all_finished_loc = _localize_fixtures(all_finished, tz_minutes)
     all_results_out = _add_owner_cols(all_finished_loc[["Date", "Time", "Home", "Score", "Away", "Stage"]])
+    if selected_owners:
+        all_results_out = all_results_out[
+            all_results_out["HomeOwner"].isin(selected_owners)
+            | all_results_out["AwayOwner"].isin(selected_owners)
+        ]
 
     # All upcoming (fixtures page — ascending datetime order)
     all_upcoming = fixtures[fixtures["Status"] == "Upcoming"]
     all_upcoming_loc = _localize_fixtures(all_upcoming, tz_minutes)
     all_upcoming_out = _add_owner_cols(all_upcoming_loc[["Match", "Date", "Time", "Home", "Away", "Stage"]])
+    if selected_owners:
+        all_upcoming_out = all_upcoming_out[
+            all_upcoming_out["HomeOwner"].isin(selected_owners)
+            | all_upcoming_out["AwayOwner"].isin(selected_owners)
+        ]
 
     return (
         person_table.to_dict("records"),
