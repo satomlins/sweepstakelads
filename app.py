@@ -265,6 +265,7 @@ def _make_table(
         style_cell_conditional=_NUMERIC_ALIGN,
         sort_action="native" if sort else "none",
         style_table={"overflowX": "auto"},
+        cell_selectable=False,
     )
 
 
@@ -718,6 +719,7 @@ def update_all(n, tz_offset_minutes, show_goals_data, selected_owners):
                         style_cell_conditional=_NUMERIC_ALIGN + group_col_widths,
                         style_data_conditional=gfmt,
                         style_table={"overflowX": "hidden"},
+                        cell_selectable=False,
                     ),
                 ],
                 className="group-cell",

@@ -287,10 +287,15 @@ main {
   box-shadow: none !important;
 }
 
-/* Row hover */
-.dash-table-container tr:hover td {
-  background-color: var(--hover) !important;
-  transition: background-color 120ms ease;
+/* No hover effect on any DataTable cell or row */
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner :not(.cell--selected) tr:hover,
+.dash-table-container tr:hover {
+  background-color: transparent !important;
+}
+.dash-table-container .dash-spreadsheet td.cell--selected,
+.dash-table-container .dash-spreadsheet td.focused {
+  background-color: transparent !important;
+  color: inherit !important;
 }
 
 /* Last row: no bottom border */
