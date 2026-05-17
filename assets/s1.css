@@ -108,6 +108,22 @@ main {
   color: var(--text);
 }
 
+.goals-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  padding: 0;
+  transition: color 120ms;
+}
+
+.goals-toggle-btn:hover {
+  color: var(--text-muted);
+}
+
 /* ------------------------------------------------------------
    Tab navigation
    ------------------------------------------------------------ */
