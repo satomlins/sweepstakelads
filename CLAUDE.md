@@ -77,6 +77,7 @@ Strict separation of concerns — each module has one job:
 - **Timezone handling**: browser offset detected via clientside callback (`-new Date().getTimezoneOffset()` → `dcc.Store(id="tz-offset")`); `_localize_fixtures(df, tz_minutes)` synthesises `Date` and `Time` columns from `DatetimeUTC` — `Time` is not stored in the CSV; `DatetimeUTC` is the single source of truth — dates shift correctly across timezones (e.g. a late-night UTC-7 match shows as next-day for UK users); header shows "All times UTC+X" label
 - **Match numbers**: `fixtures["Match"] = range(1, len(fixtures) + 1)` applied globally in `update_all` after loading (sequential by chronological sort order, 1-indexed)
 - **Pre-computed style constants** at module scope: `_NUMERIC_ALIGN`, `_PERSON_FMT`, `_TEAM_ROW_COLOUR`, `_WHO_COL_COLOUR`, `_FIXTURE_OWNER_FMT`, `_TP_DIM_RULES` — deterministic rules built once; draw-dependent rules (`_team_stripe_rules`, `_fixture_colour_rules`, `_group_colour_rules`) are still built inside the callback
+- All `dash_table.DataTable` instances (both the `_make_table` helper and the inline group mini-tables) set `cell_selectable=False` so clicking a cell does not trigger Dash's default light-background active-cell styling, which would be unreadable against the dark theme
 - Column sets (constants at top of file):
   - `_RESULT_COLS` = `[Date, Time, HomeOwner, Home, Score, Away, AwayOwner, Stage]`
   - `_FIXTURE_COLS` = `[Match, Date, Time, HomeOwner, Home, Away, AwayOwner, Stage]`
@@ -92,7 +93,8 @@ Strict separation of concerns — each module has one job:
 - CSS custom properties in `:root` for all colours, surfaces, borders, text
 - System font stack (no Google Fonts); `ui-monospace` for numeric columns
 - Tab navigation styles: `.tab-nav`, `.tab-link`, `.tab-link.active`
-- Page fade-in animation, row hover, responsive breakpoints at 768px / 480px
+- Page fade-in animation, responsive breakpoints at 768px / 480px
+- DataTable rows and cells have no hover styling — Dash's bundled light-mode hover is neutralised in CSS, and our former dark-grey `--hover` rule has been removed. Hover affordances remain on tab nav, footer icons, GS/GA toggle button, and links — i.e. everything that is not a table
 - Mobile breakpoints also tighten `.tab-link` (font/padding) and add `overflow-x: auto` + scrollbar suppression on `.tab-nav` so the four-tab nav fits on phones
 - Dark-theme overrides for `dcc.Dropdown` (`.owner-filter` class) so the owner filter on the Results & Fixtures page matches the surrounding UI
 
