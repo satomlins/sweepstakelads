@@ -329,7 +329,8 @@ app.layout = html.Div(
                                         "marginLeft": "8px",
                                     },
                                 ),
-                            ]
+                            ],
+                            className="header-wordmark",
                         ),
                         html.Div(
                             [
@@ -350,6 +351,7 @@ app.layout = html.Div(
                                     },
                                 ),
                             ],
+                            className="header-meta",
                             style={"display": "flex", "flexDirection": "column", "alignItems": "flex-end", "gap": "2px"},
                         ),
                     ],
@@ -713,7 +715,7 @@ def update_all(n, tz_offset_minutes):
         all_upcoming_out.to_dict("records"),
         fixture_fmt,
         _tz_label(tz_minutes),
-        f"Last updated: {timestamp} UTC",
+        "Last updated: {} {} {}".format(*_fmt_local(timestamp, tz_minutes), _tz_label(tz_minutes).replace("All times ", "")),
     )
 
 

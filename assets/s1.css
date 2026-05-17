@@ -269,7 +269,15 @@ a:visited {
   .site-header {
     flex-direction: column;
     gap: 6px;
-    align-items: flex-start;
+    align-items: stretch;
+  }
+
+  .header-wordmark {
+    text-align: center;
+  }
+
+  .header-meta {
+    align-self: flex-end;
   }
 
   .row {
