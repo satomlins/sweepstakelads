@@ -71,9 +71,9 @@ Strict separation of concerns — each module has one job:
 - Four-tab navigation (Home / Leaderboard / Results & Fixtures / Group Stages) using `dcc.Location` URL routing; active tab highlighted by CSS class
 - **Page: Home** — person leaderboard (full width) + recent results / upcoming fixtures side-by-side (upcoming shows no Match column)
 - **Page: Leaderboard** — person leaderboard + team table (sortable)
-- **Page: Results & Fixtures** — all results + all upcoming fixtures (section heading "Fixtures", not "Upcoming Fixtures"; no knockout section — redundant with full fixture list)
+- **Page: Results & Fixtures** — all results + all upcoming fixtures (section heading "Fixtures", not "Upcoming Fixtures"; no knockout section — redundant with full fixture list); page has an `owner-filter` multi-select dropdown above the Results section; selecting one or more owners restricts both the Results and Fixtures tables to matches where the home or away team belongs to a selected owner (default empty = no filter)
 - **Page: Group Stages** — 12 group mini-tables + third-place standings table
-- Single callback `update_all` fires on `dcc.Interval` (5 min) and on `tz-offset` store change
+- Single callback `update_all` fires on `dcc.Interval` (5 min), on `tz-offset` store change, on `show-goals` store change, and on `Input("owner-filter", "value")` change
 - **Timezone handling**: browser offset detected via clientside callback (`-new Date().getTimezoneOffset()` → `dcc.Store(id="tz-offset")`); `_localize_fixtures(df, tz_minutes)` synthesises `Date` and `Time` columns from `DatetimeUTC` — `Time` is not stored in the CSV; `DatetimeUTC` is the single source of truth — dates shift correctly across timezones (e.g. a late-night UTC-7 match shows as next-day for UK users); header shows "All times UTC+X" label
 - **Match numbers**: `fixtures["Match"] = range(1, len(fixtures) + 1)` applied globally in `update_all` after loading (sequential by chronological sort order, 1-indexed)
 - **Pre-computed style constants** at module scope: `_NUMERIC_ALIGN`, `_PERSON_FMT`, `_TEAM_ROW_COLOUR`, `_WHO_COL_COLOUR`, `_FIXTURE_OWNER_FMT`, `_TP_DIM_RULES` — deterministic rules built once; draw-dependent rules (`_team_stripe_rules`, `_fixture_colour_rules`, `_group_colour_rules`) are still built inside the callback
@@ -94,6 +94,7 @@ Strict separation of concerns — each module has one job:
 - Tab navigation styles: `.tab-nav`, `.tab-link`, `.tab-link.active`
 - Page fade-in animation, row hover, responsive breakpoints at 768px / 480px
 - Mobile breakpoints also tighten `.tab-link` (font/padding) and add `overflow-x: auto` + scrollbar suppression on `.tab-nav` so the four-tab nav fits on phones
+- Dark-theme overrides for `dcc.Dropdown` (`.owner-filter` class) so the owner filter on the Results & Fixtures page matches the surrounding UI
 
 ## Participants and colours
 
