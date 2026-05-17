@@ -227,16 +227,21 @@ def _tz_label(tz_minutes: int) -> str:
 
 
 def _localize_fixtures(df: pd.DataFrame, tz_minutes: int) -> pd.DataFrame:
-    """Replace Date/Time columns with timezone-correct values derived from DatetimeUTC."""
-    if df.empty or "DatetimeUTC" not in df.columns:
-        return df
+    """Replace Date/Time columns with timezone-correct values derived from DatetimeUTC.
+
+    Always returns a frame with Date and Time columns, even when the input is empty or
+    DatetimeUTC is absent — downstream projections require Time to exist.
+    """
     out = df.copy()
+    if out.empty or "DatetimeUTC" not in out.columns:
+        if "Date" not in out.columns:
+            out["Date"] = pd.Series(dtype=str)
+        out["Time"] = pd.Series(dtype=str)
+        return out
     pairs = [_fmt_local(r, tz_minutes) for r in df["DatetimeUTC"]]
     local_dates = [p[0] for p in pairs]
     local_times = [p[1] for p in pairs]
-    # Date: use locally-correct date; fall back to raw CSV date only when DatetimeUTC is unparseable
     out["Date"] = [ld if ld else od for ld, od in zip(local_dates, out["Date"])]
-    # Time: use locally-correct time; empty string when no UTC datetime (avoids ugly raw strings)
     out["Time"] = local_times
     return out
 
