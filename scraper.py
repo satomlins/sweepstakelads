@@ -79,6 +79,7 @@ FIFA_TEAM_NAMES = {
     "AUS": "Australia",
     "IRN": "Iran",
     "SAU": "Saudi Arabia",
+    "KSA": "Saudi Arabia",  # IOC code used in some Wikipedia flag templates
     "QAT": "Qatar",
     "IRQ": "Iraq",
     "JOR": "Jordan",

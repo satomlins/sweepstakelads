@@ -18,10 +18,6 @@ gunicorn app:server
 # Print current standings from the command line
 uv run python -m tournament          # re-fetch from Wikipedia
 uv run python -m tournament --cache  # use CSV cache if fresh
-
-# Seed fake data for UI development (writes cache files + sets timestamp 24h ahead so
-# the app won't auto-refresh from Wikipedia during the session)
-uv run python dev_seed.py
 ```
 
 Dependencies are managed with `uv` (pyproject.toml + uv.lock). Install with `uv sync`.
@@ -96,11 +92,6 @@ Strict separation of concerns — each module has one job:
 - Tab navigation styles: `.tab-nav`, `.tab-link`, `.tab-link.active`
 - Page fade-in animation, row hover, responsive breakpoints at 768px / 480px
 
-**`dev_seed.py`** — generates fake match data for UI development:
-- Writes all cache files and sets `last_updated.txt` 24 hours ahead (prevents auto-refresh)
-- `knockout_matches` generates: R32 all finished → R16 first 4 finished + last 4 upcoming → QF 4 upcoming with cross-bracket pairing (each QF has one known team + one "Winner of R16 MN" placeholder)
-- `matches_to_fixtures` adds `DatetimeUTC` column and sorts ascending before writing CSV
-
 ## Participants and colours
 
 12 confirmed: Scott, Hugo, Sam, Brendan, Isaac, Adrian, Alex, Mary, Keshy, Jacob, Seth, Ella. All 12 have colours in `COLOURS` dict in `app.py`.
@@ -132,7 +123,7 @@ COLOURS = {
 
 ## Draw status
 
-`assets/draw_2026.csv` ships with headers only — populate with real draw results before deploying. The 2026 draw was held in December 2025; the file must be filled in from the official draw sheet. App renders with all-zero standings and "TBC" owners until populated. `assets/participants.csv` has the 12 confirmed names so the person leaderboard exists pre-draw.
+`assets/draw_2026.csv` holds the live Who → Team mapping from the real draw. Round 1 (12 teams) is populated; further rounds will be appended as the draw progresses. Edit this file by hand only — there is no fake-draw generator (intentionally removed so the real draw cannot be overwritten). `assets/participants.csv` has the 12 confirmed names so the person leaderboard exists pre-draw.
 
 ## Key assets
 
