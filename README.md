@@ -25,13 +25,6 @@ uv sync
 uv run python app.py        # starts dev server at http://localhost:8050
 ```
 
-To work on the UI without hitting Wikipedia, seed fake data first:
-
-```bash
-uv run python dev_seed.py   # writes cache files + sets timestamp 24h ahead
-uv run python app.py
-```
-
 ## Tests
 
 ```bash
@@ -65,5 +58,4 @@ See `docs/DEPLOY_PLAN.md` for the full setup.
 | `tournament.py` | Orchestration, caching, background refresh |
 | `scoring.py` | Pure scoring functions — no I/O |
 | `scraper.py` | Wikipedia fetch and parse |
-| `dev_seed.py` | Fake data generator for UI development |
 | `assets/s1.css` | Stylesheet |
