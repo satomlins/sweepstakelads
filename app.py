@@ -321,14 +321,24 @@ app.layout = html.Div(
                                     },
                                 ),
                                 html.Span(
-                                    " · 2026 WORLD CUP",
+                                    " · ",
+                                    className="wordmark-sep",
+                                    style={
+                                        "fontSize": "12px",
+                                        "fontWeight": "600",
+                                        "color": "var(--text-faint)",
+                                        "marginLeft": "8px",
+                                    },
+                                ),
+                                html.Span(
+                                    "2026 WORLD CUP",
+                                    className="wordmark-tagline",
                                     style={
                                         "fontSize": "12px",
                                         "fontWeight": "600",
                                         "letterSpacing": "0.08em",
                                         "textTransform": "uppercase",
                                         "color": "var(--text-faint)",
-                                        "marginLeft": "8px",
                                     },
                                 ),
                             ],
@@ -476,7 +486,7 @@ app.layout = html.Div(
                                 ),
                                 dcc.Dropdown(
                                     id="owner-filter",
-                                    options=[{"label": name, "value": name} for name in COLOURS.keys()],
+                                    options=[{"label": name, "value": name} for name in sorted(COLOURS.keys())],
                                     value=[],
                                     multi=True,
                                     placeholder="All",
@@ -511,7 +521,18 @@ app.layout = html.Div(
                         html.Div(
                             [
                                 html.Span(
-                                    f"© {pd.Timestamp.now().year} Sweepstakelads · website by Scott Tomlins",
+                                    [
+                                        html.Span(
+                                            f"© {pd.Timestamp.now().year} Sweepstakelads",
+                                            className="footer-copy-main",
+                                        ),
+                                        html.Span(" · ", className="footer-copy-sep"),
+                                        html.Span(
+                                            "website by Scott Tomlins",
+                                            className="footer-copy-byline",
+                                        ),
+                                    ],
+                                    className="footer-copyright",
                                     style={"color": "var(--text-faint)", "fontSize": "11px"},
                                 ),
                                 html.Button(

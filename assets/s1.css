@@ -417,4 +417,43 @@ a:visited {
   .owner-filter-wrap {
     max-width: 100% !important;
   }
+
+  .header-wordmark {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .wordmark-sep {
+    display: none;
+  }
+
+  .wordmark-tagline {
+    margin-left: 0;
+  }
+
+  .site-footer {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .footer-copyright {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    text-align: center;
+  }
+
+  .footer-copy-sep {
+    display: none;
+  }
+
+  .site-footer > div:first-child {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
 }
