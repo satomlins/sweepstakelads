@@ -71,7 +71,7 @@ Strict separation of concerns — each module has one job:
 - Four-tab navigation (Home / Leaderboard / Results & Fixtures / Group Stages) using `dcc.Location` URL routing; active tab highlighted by CSS class
 - **Page: Home** — person leaderboard (full width) + recent results / upcoming fixtures side-by-side (upcoming shows no Match column)
 - **Page: Leaderboard** — person leaderboard + team table (sortable)
-- **Page: Results & Fixtures** — all results + all upcoming fixtures (section heading "Fixtures", not "Upcoming Fixtures"; no knockout section — redundant with full fixture list); page has an `owner-filter` multi-select dropdown above the Results section; selecting one or more owners restricts both the Results and Fixtures tables to matches where the home or away team belongs to a selected owner (default empty = no filter)
+- **Page: Results & Fixtures** — all results + all upcoming fixtures (section heading "Fixtures", not "Upcoming Fixtures"; no knockout section — redundant with full fixture list); page has an `owner-filter` multi-select dropdown above the Results section; selecting one or more owners restricts both the Results and Fixtures tables to matches where the home or away team belongs to a selected owner (default empty = no filter). Dropdown options are listed alphabetically by name.
 - **Page: Group Stages** — 12 group mini-tables + third-place standings table
 - Single callback `update_all` fires on `dcc.Interval` (5 min), on `tz-offset` store change, on `show-goals` store change, and on `Input("owner-filter", "value")` change
 - **Timezone handling**: browser offset detected via clientside callback (`-new Date().getTimezoneOffset()` → `dcc.Store(id="tz-offset")`); `_localize_fixtures(df, tz_minutes)` synthesises `Date` and `Time` columns from `DatetimeUTC` — `Time` is not stored in the CSV; `DatetimeUTC` is the single source of truth — dates shift correctly across timezones (e.g. a late-night UTC-7 match shows as next-day for UK users); header shows "All times UTC+X" label
@@ -86,14 +86,14 @@ Strict separation of concerns — each module has one job:
 - **Third-place standings**: computed from `compute_third_place_table(group_standings)` in callback; top 8 rows are normal weight, bottom 4 rows dimmed (opacity 0.6, `var(--text-faint)`) to indicate non-qualifiers
 - Owner identity: left-border stripe on name cell + full row text colour (leaderboard/teams); injected owner column coloured by owner (groups/fixtures); unknown teams (e.g. "Winner of Match X") show blank owner column
 - Eliminated teams: `color: var(--eliminated)` + `text-decoration: line-through` (no red)
-- Header strip: wordmark left, timezone label + "Last updated" stacked right; footer: copyright left, social icons right
+- Header strip: wordmark left, timezone label + "Last updated" stacked right; footer: copyright left, social icons right. On mobile (≤480px) the wordmark stacks into two centred lines (no `·` separator), and the footer stacks into a centred column so the GS/GA toggle and the copyright lines all centre horizontally.
 - Group mini-tables: compact (12px font, 5px padding, fixed narrow numeric columns) — no horizontal scroll
 
 **`assets/s1.css`** — full design system (dark-only, greyscale palette):
 - CSS custom properties in `:root` for all colours, surfaces, borders, text
 - System font stack (no Google Fonts); `ui-monospace` for numeric columns
 - Tab navigation styles: `.tab-nav`, `.tab-link`, `.tab-link.active`
-- Page fade-in animation, responsive breakpoints at 768px / 480px
+- Page fade-in animation, responsive breakpoints at 768px / 480px. Mobile (≤480px) additionally stacks the header wordmark and footer copyright into centred two-line blocks (hiding their `·` separators) and reflows the footer to a centred column.
 - DataTable rows and cells have no hover styling — Dash's bundled light-mode hover is neutralised in CSS, and our former dark-grey `--hover` rule has been removed. Hover affordances remain on tab nav, footer icons, GS/GA toggle button, and links — i.e. everything that is not a table
 - Mobile breakpoints also tighten `.tab-link` (font/padding) and add `overflow-x: auto` + scrollbar suppression on `.tab-nav` so the four-tab nav fits on phones
 - Dark-theme overrides for `dcc.Dropdown` (`.owner-filter` class) so the owner filter on the Results & Fixtures page matches the surrounding UI
@@ -182,6 +182,8 @@ Rollback: `git reset --hard <previous-sha>` on Oracle + `sudo systemctl restart 
 
 Before every commit, update CLAUDE.md to reflect any architectural, behavioural, or participant changes made in that session. The goal is that CLAUDE.md always gives an accurate picture of the current codebase to a future Claude session with no prior context.
 
+`TODO.md` (repo root) is a holding area for small ideas the user has flagged but not yet specced. Items there are *unscheduled*: when the user is writing the spec for the next update (`updates_documentation/UPDATE-N.md`), ask whether any TODO items should be bundled into that update; on a yes, fold them in and clear them from `TODO.md` as part of the spec.
+
 ## Design spec
 
-Full UI design spec is in `docs/DESIGN.md`. Implementation plan is in `docs/PLAN_2026.md`. Deployment notes are in `docs/DEPLOY_PLAN.md`.
+Full UI design spec is in `docs/DESIGN.md`. Implementation plan is in `docs/PLAN_2026.md`. Deployment notes are in `docs/DEPLOY_PLAN.md`. Per-update specs (one per shipped change tranche) live in `updates_documentation/UPDATE-N.md`.
