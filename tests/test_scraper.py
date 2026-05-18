@@ -161,3 +161,57 @@ def test_parse_datetime_utc_missing_date():
 def test_parse_datetime_utc_garbage():
     from datetime import date
     assert _parse_datetime_utc(date(2026, 6, 11), "TBD") is None
+
+
+# ---------------------------------------------------------------------------
+# AET / penalty-shootout parsing
+# ---------------------------------------------------------------------------
+
+_AET_PENS_WIKITEXT = """
+==Round of 16==
+{{#invoke:football box|main
+|date={{Start date|2026|7|4}}
+|team1={{#invoke:flag|fb|ENG}}
+|team2={{#invoke:flag|fb|GER}}
+|score=1–1
+|aet=yes
+|penaltyscore=4–3
+}}
+""".strip()
+
+
+_AET_NO_PENS_WIKITEXT = """
+==Round of 16==
+{{#invoke:football box|main
+|date={{Start date|2026|7|4}}
+|team1={{#invoke:flag|fb|ENG}}
+|team2={{#invoke:flag|fb|GER}}
+|score=2–1
+|aet=yes
+}}
+""".strip()
+
+
+def test_parse_aet_with_pens():
+    matches = parse_matches(_AET_PENS_WIKITEXT)
+    assert len(matches) == 1
+    m = matches[0]
+    assert m["home_team"] == "England"
+    assert m["away_team"] == "Germany"
+    assert m["home_score"] == 1
+    assert m["away_score"] == 1
+    assert m["aet"] is True
+    assert m["pen_home"] == 4
+    assert m["pen_away"] == 3
+    assert m["status"] == "finished"
+
+
+def test_parse_aet_without_pens():
+    matches = parse_matches(_AET_NO_PENS_WIKITEXT)
+    assert len(matches) == 1
+    m = matches[0]
+    assert m["home_score"] == 2
+    assert m["away_score"] == 1
+    assert m["aet"] is True
+    assert m["pen_home"] is None
+    assert m["pen_away"] is None

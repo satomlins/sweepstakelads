@@ -284,6 +284,12 @@ _TP_DIM_RULES = [
     {"if": {"row_index": i}, "color": "var(--text-faint)", "opacity": "0.6"}
     for i in range(8, 12)
 ]
+_WINNER_BOLD_RULES = [
+    {"if": {"filter_query": '{Winner} = "HOME"', "column_id": "Home"},      "fontWeight": "700"},
+    {"if": {"filter_query": '{Winner} = "HOME"', "column_id": "HomeOwner"}, "fontWeight": "700"},
+    {"if": {"filter_query": '{Winner} = "AWAY"', "column_id": "Away"},      "fontWeight": "700"},
+    {"if": {"filter_query": '{Winner} = "AWAY"', "column_id": "AwayOwner"}, "fontWeight": "700"},
+]
 
 
 # ---------------------------------------------------------------------------
@@ -768,11 +774,12 @@ def update_all(n, tz_offset_minutes, show_goals_data, selected_owners):
     fixture_colours = _fixture_colour_rules(draw)
     fixture_stripes = _team_stripe_rules(draw, "Home") + _team_stripe_rules(draw, "Away")
     fixture_fmt = fixture_stripes + fixture_colours + _FIXTURE_OWNER_FMT
+    results_fmt = fixture_fmt + _WINNER_BOLD_RULES
 
     # Recent results (home page — last 10, newest first)
     finished = fixtures[fixtures["Status"] == "Finished"].tail(10).iloc[::-1]
     finished_loc = _localize_fixtures(finished, tz_minutes)
-    recent_out = _add_owner_cols(finished_loc[["Date", "Time", "Home", "Score", "Away", "Stage"]])
+    recent_out = _add_owner_cols(finished_loc[["Date", "Time", "Home", "Score", "Away", "Stage", "Winner"]])
 
     # Upcoming fixtures (home page — next 10, ascending datetime order)
     upcoming = fixtures[fixtures["Status"] == "Upcoming"].head(10)
@@ -782,7 +789,7 @@ def update_all(n, tz_offset_minutes, show_goals_data, selected_owners):
     # All results (fixtures page — newest first)
     all_finished = fixtures[fixtures["Status"] == "Finished"].iloc[::-1]
     all_finished_loc = _localize_fixtures(all_finished, tz_minutes)
-    all_results_out = _add_owner_cols(all_finished_loc[["Date", "Time", "Home", "Score", "Away", "Stage"]])
+    all_results_out = _add_owner_cols(all_finished_loc[["Date", "Time", "Home", "Score", "Away", "Stage", "Winner"]])
     if selected_owners:
         all_results_out = all_results_out[
             all_results_out["HomeOwner"].isin(selected_owners)
@@ -814,11 +821,11 @@ def update_all(n, tz_offset_minutes, show_goals_data, selected_owners):
         tp_fmt,
         _cols(third_cols),
         recent_out.to_dict("records"),
-        fixture_fmt,
+        results_fmt,
         upcoming_out.to_dict("records"),
         fixture_fmt,
         all_results_out.to_dict("records"),
-        fixture_fmt,
+        results_fmt,
         all_upcoming_out.to_dict("records"),
         fixture_fmt,
         _tz_label(tz_minutes),

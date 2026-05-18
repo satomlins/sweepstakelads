@@ -89,6 +89,24 @@ def load_participants() -> list[str]:
         return []
 
 
+def _winner_label(m: dict) -> str:
+    hs = m["home_score"]
+    aws = m["away_score"]
+    if hs is None or aws is None:
+        return ""
+    if m["aet"] and m["pen_home"] is not None and m["pen_away"] is not None:
+        if m["pen_home"] > m["pen_away"]:
+            return "HOME"
+        if m["pen_away"] > m["pen_home"]:
+            return "AWAY"
+        return ""
+    if hs > aws:
+        return "HOME"
+    if aws > hs:
+        return "AWAY"
+    return "DRAW"
+
+
 def _matches_to_fixtures_df(matches: list[dict]) -> pd.DataFrame:
     """Convert match list to display DataFrame."""
     rows = []
@@ -113,6 +131,7 @@ def _matches_to_fixtures_df(matches: list[dict]) -> pd.DataFrame:
                 "Away": m["away_team"],
                 "Stage": m["stage"],
                 "Status": m["status"].capitalize(),
+                "Winner": _winner_label(m),
             }
         )
     return pd.DataFrame(rows)
