@@ -30,6 +30,126 @@ COLOURS = {
     "Ella":    "#f8c8d4",
 }
 
+# Country name -> flag emoji. Keys must match the output of
+# scraper._code_to_name exactly. Unmapped names fall through to the
+# original string at substitution time (see _apply_flags).
+FLAGS = {
+    # CONCACAF
+    "United States":  "🇺🇸",
+    "Mexico":         "🇲🇽",
+    "Canada":         "🇨🇦",
+    "Costa Rica":     "🇨🇷",
+    "Panama":         "🇵🇦",
+    "Jamaica":        "🇯🇲",
+    "Honduras":       "🇭🇳",
+    "Trinidad & Tobago": "🇹🇹",
+    "Haiti":          "🇭🇹",
+    "Cuba":           "🇨🇺",
+    "El Salvador":    "🇸🇻",
+    "Nicaragua":      "🇳🇮",
+    "Guatemala":      "🇬🇹",
+    # UEFA
+    "Germany":        "🇩🇪",
+    "France":         "🇫🇷",
+    "Spain":          "🇪🇸",
+    "Portugal":       "🇵🇹",
+    "England":        "🏴\U000E0067\U000E0062\U000E0065\U000E006E\U000E0067\U000E007F",
+    "Netherlands":    "🇳🇱",
+    "Belgium":        "🇧🇪",
+    "Italy":          "🇮🇹",
+    "Switzerland":    "🇨🇭",
+    "Croatia":        "🇭🇷",
+    "Austria":        "🇦🇹",
+    "Turkey":         "🇹🇷",
+    "Denmark":        "🇩🇰",
+    "Serbia":         "🇷🇸",
+    "Scotland":       "🏴\U000E0067\U000E0062\U000E0073\U000E0063\U000E0074\U000E007F",
+    "Ukraine":        "🇺🇦",
+    "Slovakia":       "🇸🇰",
+    "Slovenia":       "🇸🇮",
+    "Czech Republic": "🇨🇿",
+    "Hungary":        "🇭🇺",
+    "Georgia":        "🇬🇪",
+    "Albania":        "🇦🇱",
+    "Romania":        "🇷🇴",
+    "Poland":         "🇵🇱",
+    "Wales":          "🏴\U000E0067\U000E0062\U000E0077\U000E006C\U000E0073\U000E007F",
+    "Norway":         "🇳🇴",
+    "Sweden":         "🇸🇪",
+    "Greece":         "🇬🇷",
+    "Finland":        "🇫🇮",
+    "Iceland":        "🇮🇸",
+    "Northern Ireland": "🇬🇧",
+    "Republic of Ireland": "🇮🇪",
+    "Luxembourg":     "🇱🇺",
+    "North Macedonia": "🇲🇰",
+    "Bosnia and Herzegovina": "🇧🇦",
+    "Montenegro":     "🇲🇪",
+    # CONMEBOL
+    "Brazil":         "🇧🇷",
+    "Argentina":      "🇦🇷",
+    "Uruguay":        "🇺🇾",
+    "Colombia":       "🇨🇴",
+    "Chile":          "🇨🇱",
+    "Ecuador":        "🇪🇨",
+    "Paraguay":       "🇵🇾",
+    "Bolivia":        "🇧🇴",
+    "Peru":           "🇵🇪",
+    "Venezuela":      "🇻🇪",
+    # AFC
+    "Japan":          "🇯🇵",
+    "South Korea":    "🇰🇷",
+    "Australia":      "🇦🇺",
+    "Iran":           "🇮🇷",
+    "Saudi Arabia":   "🇸🇦",
+    "Qatar":          "🇶🇦",
+    "Iraq":           "🇮🇶",
+    "Jordan":         "🇯🇴",
+    "China":          "🇨🇳",
+    "Uzbekistan":     "🇺🇿",
+    "Bahrain":        "🇧🇭",
+    "Oman":           "🇴🇲",
+    "Kuwait":         "🇰🇼",
+    "United Arab Emirates": "🇦🇪",
+    "Syria":          "🇸🇾",
+    "Kyrgyzstan":     "🇰🇬",
+    "Tajikistan":     "🇹🇯",
+    "Indonesia":      "🇮🇩",
+    "Thailand":       "🇹🇭",
+    "Vietnam":        "🇻🇳",
+    "Palestine":      "🇵🇸",
+    # CAF
+    "Morocco":        "🇲🇦",
+    "Egypt":          "🇪🇬",
+    "Senegal":        "🇸🇳",
+    "Nigeria":        "🇳🇬",
+    "Cameroon":       "🇨🇲",
+    "Ivory Coast":    "🇨🇮",
+    "Ghana":          "🇬🇭",
+    "Algeria":        "🇩🇿",
+    "Tunisia":        "🇹🇳",
+    "South Africa":   "🇿🇦",
+    "Mali":           "🇲🇱",
+    "DR Congo":       "🇨🇩",
+    "Tanzania":       "🇹🇿",
+    "Zambia":         "🇿🇲",
+    "Mozambique":     "🇲🇿",
+    "Comoros":        "🇰🇲",
+    "Cape Verde":     "🇨🇻",
+    "Benin":          "🇧🇯",
+    "Ethiopia":       "🇪🇹",
+    "Gabon":          "🇬🇦",
+    "Zimbabwe":       "🇿🇼",
+    "Gambia":         "🇬🇲",
+    "Burkina Faso":   "🇧🇫",
+    "Uganda":         "🇺🇬",
+    "Kenya":          "🇰🇪",
+    "Sudan":          "🇸🇩",
+    # OFC
+    "New Zealand":    "🇳🇿",
+    "Curaçao":        "🇨🇼",
+}
+
 HEADER = {
     "backgroundColor": "transparent",
     "color": "var(--text-muted)",
@@ -226,6 +346,16 @@ def _tz_label(tz_minutes: int) -> str:
     return f"All times UTC{sign}{h}" if m == 0 else f"All times UTC{sign}{h}:{m:02d}"
 
 
+def _apply_flags(df: pd.DataFrame, cols: list[str], show: bool) -> pd.DataFrame:
+    if not show or df.empty:
+        return df.copy()
+    out = df.copy()
+    for col in cols:
+        if col in out.columns:
+            out[col] = out[col].map(lambda v: FLAGS.get(v, v))
+    return out
+
+
 def _localize_fixtures(df: pd.DataFrame, tz_minutes: int) -> pd.DataFrame:
     """Replace Date/Time columns with timezone-correct values derived from DatetimeUTC.
 
@@ -309,6 +439,7 @@ app.layout = html.Div(
         dcc.Interval(id="interval", interval=5 * 60 * 1000),
         dcc.Store(id="tz-offset", data=None),
         dcc.Store(id="show-goals", data=False),
+        dcc.Store(id="show-flags", data=False),
 
         html.Main(
             [
@@ -547,6 +678,12 @@ app.layout = html.Div(
                                     n_clicks=0,
                                     className="goals-toggle-btn",
                                 ),
+                                html.Button(
+                                    "Show flags",
+                                    id="flags-toggle",
+                                    n_clicks=0,
+                                    className="goals-toggle-btn",
+                                ),
                             ],
                             style={"display": "flex", "alignItems": "center", "gap": "16px"},
                         ),
@@ -636,6 +773,18 @@ def toggle_goals(_n, current):
 
 
 @app.callback(
+    Output("show-flags",   "data"),
+    Output("flags-toggle", "children"),
+    Input("flags-toggle",  "n_clicks"),
+    State("show-flags",    "data"),
+    prevent_initial_call=True,
+)
+def toggle_flags(_n, current):
+    show = not current
+    return show, "Show names" if show else "Show flags"
+
+
+@app.callback(
     Output("person-table",       "data"),
     Output("person-table",       "style_data_conditional"),
     Output("person-table",       "columns"),
@@ -662,11 +811,13 @@ def toggle_goals(_n, current):
     Input("interval",      "n_intervals"),
     Input("tz-offset",     "data"),
     Input("show-goals",    "data"),
+    Input("show-flags",    "data"),
     Input("owner-filter",  "value"),
 )
-def update_all(n, tz_offset_minutes, show_goals_data, selected_owners):
+def update_all(n, tz_offset_minutes, show_goals_data, show_flags_data, selected_owners):
     tz_minutes = tz_offset_minutes if tz_offset_minutes is not None else 0
     show_goals = bool(show_goals_data)
+    show_flags = bool(show_flags_data)
     selected_owners = selected_owners or []
     _skip = set() if show_goals else {"GS", "GA"}
 
@@ -681,7 +832,7 @@ def update_all(n, tz_offset_minutes, show_goals_data, selected_owners):
     draw = load_draw()
 
     timestamp    = data["timestamp"]
-    team_table   = data["team_table"]
+    team_table   = _apply_flags(data["team_table"],   ["Team"], show_flags)
     person_table = data["person_table"]
     group_standings = data["group_standings"]
     fixtures     = data["fixtures"].copy()
@@ -718,6 +869,7 @@ def update_all(n, tz_offset_minutes, show_goals_data, selected_owners):
         else:
             gdf = gdf.copy()
             gdf["Who"] = ""
+        gdf = _apply_flags(gdf, ["Team"], show_flags)
         gfmt = (
             _NUMERIC_ALIGN
             + _team_stripe_rules(draw, "Team")
@@ -754,7 +906,7 @@ def update_all(n, tz_offset_minutes, show_goals_data, selected_owners):
         )
 
     # Third-place standings table
-    tp_df = compute_third_place_table(group_standings)
+    tp_df = _apply_flags(compute_third_place_table(group_standings), ["Team"], show_flags)
     if not tp_df.empty and not draw.empty:
         tp_df = tp_df.merge(draw[["Team", "Who"]], on="Team", how="left")
         tp_df["Who"] = tp_df["Who"].fillna("")
@@ -780,11 +932,13 @@ def update_all(n, tz_offset_minutes, show_goals_data, selected_owners):
     finished = fixtures[fixtures["Status"] == "Finished"].tail(10).iloc[::-1]
     finished_loc = _localize_fixtures(finished, tz_minutes)
     recent_out = _add_owner_cols(finished_loc[["Date", "Time", "Home", "Score", "Away", "Stage", "Winner"]])
+    recent_out = _apply_flags(recent_out, ["Home", "Away"], show_flags)
 
     # Upcoming fixtures (home page — next 10, ascending datetime order)
     upcoming = fixtures[fixtures["Status"] == "Upcoming"].head(10)
     upcoming_loc = _localize_fixtures(upcoming, tz_minutes)
     upcoming_out = _add_owner_cols(upcoming_loc[["Match", "Date", "Time", "Home", "Away", "Stage"]])
+    upcoming_out = _apply_flags(upcoming_out, ["Home", "Away"], show_flags)
 
     # All results (fixtures page — newest first)
     all_finished = fixtures[fixtures["Status"] == "Finished"].iloc[::-1]
@@ -795,6 +949,7 @@ def update_all(n, tz_offset_minutes, show_goals_data, selected_owners):
             all_results_out["HomeOwner"].isin(selected_owners)
             | all_results_out["AwayOwner"].isin(selected_owners)
         ]
+    all_results_out = _apply_flags(all_results_out, ["Home", "Away"], show_flags)
 
     # All upcoming (fixtures page — ascending datetime order)
     all_upcoming = fixtures[fixtures["Status"] == "Upcoming"]
@@ -805,6 +960,7 @@ def update_all(n, tz_offset_minutes, show_goals_data, selected_owners):
             all_upcoming_out["HomeOwner"].isin(selected_owners)
             | all_upcoming_out["AwayOwner"].isin(selected_owners)
         ]
+    all_upcoming_out = _apply_flags(all_upcoming_out, ["Home", "Away"], show_flags)
 
     return (
         person_table.to_dict("records"),
