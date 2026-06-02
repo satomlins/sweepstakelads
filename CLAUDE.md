@@ -133,7 +133,7 @@ COLOURS = {
 
 ## Draw status
 
-`assets/draw_2026.csv` holds the live Who → Team mapping from the real draw. Rounds 1 and 2 (24 teams) are populated; further rounds will be appended as the draw progresses. Edit this file by hand only — there is no fake-draw generator (intentionally removed so the real draw cannot be overwritten). `assets/participants.csv` has the 12 confirmed names so the person leaderboard exists pre-draw.
+`assets/draw_2026.csv` holds the complete Who → Team mapping from the real draw. All 4 rounds are finalised (48 teams, 4 per participant). Edit this file by hand only — there is no fake-draw generator (intentionally removed so the real draw cannot be overwritten). `assets/participants.csv` has the 12 confirmed names.
 
 ## Key assets
 
