@@ -906,13 +906,14 @@ def update_all(n, tz_offset_minutes, show_goals_data, show_flags_data, selected_
         )
 
     # Third-place standings table
-    tp_df = _apply_flags(compute_third_place_table(group_standings), ["Team"], show_flags)
+    tp_df = compute_third_place_table(group_standings)
     if not tp_df.empty and not draw.empty:
         tp_df = tp_df.merge(draw[["Team", "Who"]], on="Team", how="left")
         tp_df["Who"] = tp_df["Who"].fillna("")
     else:
         tp_df = tp_df.copy()
         tp_df["Who"] = ""
+    tp_df = _apply_flags(tp_df, ["Team"], show_flags)
     tp_fmt = (
         _NUMERIC_ALIGN
         + _team_stripe_rules(draw, "Team")
