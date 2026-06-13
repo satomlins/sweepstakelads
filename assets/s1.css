@@ -393,6 +393,97 @@ a:visited {
   }
 }
 
+/* ------------------------------------------------------------
+   Mobile card layout — fixture/result tables
+   ------------------------------------------------------------ */
+.mobile-only  { display: none; }
+.desktop-only { display: block; }
+
+.card-date-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 24px 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.card-date-header:first-child {
+  margin-top: 0;
+}
+
+.match-card {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.match-card:last-child {
+  border-bottom: none;
+}
+
+.card-meta {
+  font-size: 13px;
+  color: var(--text-faint);
+  margin-bottom: 4px;
+  text-align: center;
+}
+
+.card-matchup {
+  display: flex;
+  align-items: center;
+  font-size: 15px;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.card-matchup-home {
+  flex: 1;
+  text-align: right;
+}
+
+.card-matchup-away {
+  flex: 1;
+  text-align: left;
+}
+
+.card-matchup-score {
+  padding: 0 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.card-matchup .winner {
+  font-weight: 700;
+}
+
+.card-owners {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+}
+
+.card-owner-home {
+  flex: 1;
+  text-align: right;
+}
+
+.card-owner-away {
+  flex: 1;
+  text-align: left;
+}
+
+.card-owner-sep {
+  padding: 0 8px;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+@media screen and (max-width: 480px) {
+  .mobile-only  { display: block; }
+  .desktop-only { display: none; }
+}
+
 @media screen and (max-width: 480px) {
   .groups-grid {
     grid-template-columns: 1fr;
