@@ -316,7 +316,7 @@ main {
 .dash-table-container .column-GS,
 .dash-table-container .column-GA,
 .dash-table-container .column-GD,
-.dash-table-container .column-PNT,
+.dash-table-container .column-PTS,
 .dash-table-container .column-Score {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace !important;
   font-variant-numeric: tabular-nums;

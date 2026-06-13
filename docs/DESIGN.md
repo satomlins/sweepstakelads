@@ -65,7 +65,7 @@ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Ubuntu, Cantarell,
 -moz-osx-font-smoothing: grayscale;
 ```
 
-Numeric columns (PL / W / D / L / GS / GA / GD / PNT and scores) use a monospace stack so digits align:
+Numeric columns (PL / W / D / L / GS / GA / GD / PTS and scores) use a monospace stack so digits align:
 
 ```css
 font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
@@ -194,7 +194,7 @@ CSS overrides (in `s1.css`) for things `dash_table` won't accept inline:
 .dash-table-container .column-GS,
 .dash-table-container .column-GA,
 .dash-table-container .column-GD,
-.dash-table-container .column-PNT,
+.dash-table-container .column-PTS,
 .dash-table-container .column-Score {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
   font-variant-numeric: tabular-nums;

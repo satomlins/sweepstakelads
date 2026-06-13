@@ -32,7 +32,7 @@ def _apply_match(stats: dict[str, dict], match: dict) -> None:
 
     for team in (home, away):
         if team not in stats:
-            stats[team] = {"W": 0, "D": 0, "L": 0, "GS": 0, "GA": 0, "PNT": 0}
+            stats[team] = {"W": 0, "D": 0, "L": 0, "GS": 0, "GA": 0, "PTS": 0}
 
     # Goals always from the full-time (incl. AET) score
     stats[home]["GS"] += hs
@@ -50,27 +50,27 @@ def _apply_match(stats: dict[str, dict], match: dict) -> None:
         stats[winner]["W"] += 1
         stats[loser]["L"] += 1
         if third_place:
-            stats[winner]["PNT"] += 1
+            stats[winner]["PTS"] += 1
         else:
-            stats[winner]["PNT"] += 2
-            stats[loser]["PNT"] += 1
+            stats[winner]["PTS"] += 2
+            stats[loser]["PTS"] += 1
 
     elif hs != aws:
         winner, loser = (home, away) if hs > aws else (away, home)
         stats[winner]["W"] += 1
         stats[loser]["L"] += 1
         if third_place:
-            stats[winner]["PNT"] += 1
+            stats[winner]["PTS"] += 1
         else:
-            stats[winner]["PNT"] += 3
-            stats[loser]["PNT"] += (1 if aet else 0)
+            stats[winner]["PTS"] += 3
+            stats[loser]["PTS"] += (1 if aet else 0)
 
     else:
         # Draw — only valid in group stage
         stats[home]["D"] += 1
         stats[away]["D"] += 1
-        stats[home]["PNT"] += 1
-        stats[away]["PNT"] += 1
+        stats[home]["PTS"] += 1
+        stats[away]["PTS"] += 1
 
 
 def compute_team_table(draw: pd.DataFrame, matches: list[dict]) -> pd.DataFrame:
@@ -80,14 +80,14 @@ def compute_team_table(draw: pd.DataFrame, matches: list[dict]) -> pd.DataFrame:
     draw: DataFrame with columns [Who, Team]. May be empty (pre-draw state).
     matches: list of match dicts from scraper.
 
-    Returns DataFrame: Team, Who, PL, W, D, L, GS, GA, GD, PNT, In
+    Returns DataFrame: Team, Who, PL, W, D, L, GS, GA, GD, PTS, In
     """
     stats: dict[str, dict] = {}
 
     # Seed from draw so all drawn teams appear even before matches start
     if not draw.empty:
         for team in draw["Team"]:
-            stats[team] = {"W": 0, "D": 0, "L": 0, "GS": 0, "GA": 0, "PNT": 0}
+            stats[team] = {"W": 0, "D": 0, "L": 0, "GS": 0, "GA": 0, "PTS": 0}
 
     # Apply finished matches
     for m in matches:
@@ -101,7 +101,7 @@ def compute_team_table(draw: pd.DataFrame, matches: list[dict]) -> pd.DataFrame:
             continue
         for team in (m["home_team"], m["away_team"]):
             if team not in stats:
-                stats[team] = {"W": 0, "D": 0, "L": 0, "GS": 0, "GA": 0, "PNT": 0}
+                stats[team] = {"W": 0, "D": 0, "L": 0, "GS": 0, "GA": 0, "PTS": 0}
 
     rows = []
     for team, s in stats.items():
@@ -115,14 +115,14 @@ def compute_team_table(draw: pd.DataFrame, matches: list[dict]) -> pd.DataFrame:
                 "GS": s["GS"],
                 "GA": s["GA"],
                 "GD": s["GS"] - s["GA"],
-                "PNT": s["PNT"],
+                "PTS": s["PTS"],
             }
         )
 
     df = pd.DataFrame(rows)
     if df.empty:
         df = pd.DataFrame(
-            columns=["Team", "Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT", "In"]
+            columns=["Team", "Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PTS", "In"]
         )
         return df
 
@@ -148,8 +148,8 @@ def compute_group_standings(matches: list[dict]) -> dict[str, pd.DataFrame]:
     """
     Compute group-stage-only standings per group (for the 12 group mini-tables).
 
-    Returns dict: group_letter → DataFrame [Team, PL, W, D, L, GS, GA, GD, PNT],
-    sorted PNT→GD→GS desc.
+    Returns dict: group_letter → DataFrame [Team, PL, W, D, L, GS, GA, GD, PTS],
+    sorted PTS→GD→GS desc.
     """
     group_stats: dict[str, dict[str, dict]] = {}
 
@@ -165,7 +165,7 @@ def compute_group_standings(matches: list[dict]) -> dict[str, pd.DataFrame]:
         for team in (m["home_team"], m["away_team"]):
             if team not in group_stats[group]:
                 group_stats[group][team] = {
-                    "W": 0, "D": 0, "L": 0, "GS": 0, "GA": 0, "PNT": 0
+                    "W": 0, "D": 0, "L": 0, "GS": 0, "GA": 0, "PTS": 0
                 }
 
         if m["status"] != "finished" or m["home_score"] is None:
@@ -187,12 +187,12 @@ def compute_group_standings(matches: list[dict]) -> dict[str, pd.DataFrame]:
                     "GS": s["GS"],
                     "GA": s["GA"],
                     "GD": s["GS"] - s["GA"],
-                    "PNT": s["PNT"],
+                    "PTS": s["PTS"],
                 }
             )
         df = (
             pd.DataFrame(rows)
-            .sort_values(["PNT", "GD", "GS"], ascending=False)
+            .sort_values(["PTS", "GD", "GS"], ascending=False)
             .reset_index(drop=True)
         )
         result[group] = df
@@ -202,7 +202,7 @@ def compute_group_standings(matches: list[dict]) -> dict[str, pd.DataFrame]:
 
 def compute_third_place_table(group_standings: dict[str, pd.DataFrame]) -> pd.DataFrame:
     """
-    Collect 3rd-placed teams from all groups, sorted PNT→GD→GS desc.
+    Collect 3rd-placed teams from all groups, sorted PTS→GD→GS desc.
     Top 8 of the 12 third-place teams advance to the knockout stage.
     """
     rows = []
@@ -213,28 +213,28 @@ def compute_third_place_table(group_standings: dict[str, pd.DataFrame]) -> pd.Da
             rows.append(row)
     if not rows:
         return pd.DataFrame(
-            columns=["Group", "Team", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
+            columns=["Group", "Team", "PL", "W", "D", "L", "GS", "GA", "GD", "PTS"]
         )
     result = (
         pd.DataFrame(rows)
-        .sort_values(["PNT", "GD", "GS"], ascending=False)
+        .sort_values(["PTS", "GD", "GS"], ascending=False)
         .reset_index(drop=True)
     )
-    return result[["Group", "Team", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]]
+    return result[["Group", "Team", "PL", "W", "D", "L", "GS", "GA", "GD", "PTS"]]
 
 
 def compute_person_table(team_table: pd.DataFrame) -> pd.DataFrame:
     """
     Aggregate team_table by owner to produce the person leaderboard.
 
-    Returns DataFrame: Who, PL, W, D, L, GS, GA, GD, PNT, sorted PNT→GD→GS desc.
+    Returns DataFrame: Who, PL, W, D, L, GS, GA, GD, PTS, sorted PTS→GD→GS desc.
     """
     if team_table.empty or "Who" not in team_table.columns:
         return pd.DataFrame(
-            columns=["Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
+            columns=["Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PTS"]
         )
 
-    sum_cols = ["PL", "W", "D", "L", "GS", "GA", "PNT"]
+    sum_cols = ["PL", "W", "D", "L", "GS", "GA", "PTS"]
     agg = (
         team_table[["Who"] + sum_cols]
         .groupby("Who")
@@ -244,8 +244,8 @@ def compute_person_table(team_table: pd.DataFrame) -> pd.DataFrame:
     agg = agg[agg["Who"] != ""]
     agg["GD"] = agg["GS"] - agg["GA"]
     agg = (
-        agg[["Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]]
-        .sort_values(["PNT", "GD", "GS"], ascending=False)
+        agg[["Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PTS"]]
+        .sort_values(["PTS", "GD", "GS"], ascending=False)
         .reset_index(drop=True)
     )
     return agg

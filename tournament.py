@@ -148,7 +148,7 @@ def refresh() -> dict:
     group_standings = compute_group_standings(matches)
     fixtures_df = _matches_to_fixtures_df(matches)
 
-    team_table.sort_values(["PNT", "GD", "GS"], ascending=False, inplace=True)
+    team_table.sort_values(["PTS", "GD", "GS"], ascending=False, inplace=True)
     team_table.reset_index(drop=True, inplace=True)
 
     fixtures_df["_sort"] = pd.to_datetime(fixtures_df["DatetimeUTC"], errors="coerce")
@@ -163,11 +163,11 @@ def refresh() -> dict:
         missing = [p for p in participants if p not in existing]
         if missing:
             filler = pd.DataFrame(
-                [{"Who": p, "PL": 0, "W": 0, "D": 0, "L": 0, "GS": 0, "GA": 0, "GD": 0, "PNT": 0}
+                [{"Who": p, "PL": 0, "W": 0, "D": 0, "L": 0, "GS": 0, "GA": 0, "GD": 0, "PTS": 0}
                  for p in missing]
             )
             person_table = pd.concat([person_table, filler], ignore_index=True)
-            person_table.sort_values(["PNT", "GD", "GS"], ascending=False, inplace=True)
+            person_table.sort_values(["PTS", "GD", "GS"], ascending=False, inplace=True)
             person_table.reset_index(drop=True, inplace=True)
 
     _atomic_write_csv(team_table, CACHE_TEAM)

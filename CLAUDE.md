@@ -49,10 +49,10 @@ Strict separation of concerns — each module has one job:
 - Uses `logging` (module-level `logger`); partial failures logged as `logger.warning`
 
 **`scoring.py`** — pure functions, no I/O:
-- `compute_team_table(draw, matches)` → DataFrame with columns `[Team, Who, PL, W, D, L, GS, GA, GD, PNT, In]`
+- `compute_team_table(draw, matches)` → DataFrame with columns `[Team, Who, PL, W, D, L, GS, GA, GD, PTS, In]`
 - `compute_person_table(team_table)` → DataFrame summing team stats per owner
 - `compute_group_standings(matches)` → dict of `{group_letter: DataFrame}`
-- `compute_third_place_table(group_standings)` → DataFrame of all 12 third-place teams sorted PNT→GD→GS; top 8 advance to the knockout stage
+- `compute_third_place_table(group_standings)` → DataFrame of all 12 third-place teams sorted PTS→GD→GS; top 8 advance to the knockout stage
 - Scoring rules: regular win 3/0, AET win 3/1 (GD counts), pens 2/1 (GD not counted), group draw 1/1, third-place match 1/0
 - `_apply_match` handles: penalty shootout; regular/AET win (single branch — winner determined by `hs > aws`); draw
 - `compute_team_table` seeds team rows from group-stage matches only — knockout placeholder names like "Winner of Match X" are intentionally excluded; unowned teams get `Who = ""` (not `"TBC"`)
@@ -85,7 +85,7 @@ Strict separation of concerns — each module has one job:
   - `_RESULT_COLS` = `[Date, Time, HomeOwner, Home, Score, Away, AwayOwner, Stage]`
   - `_FIXTURE_COLS` = `[Match, Date, Time, HomeOwner, Home, Away, AwayOwner, Stage]`
   - `_HOME_UPCOMING_COLS` = `[Date, Time, HomeOwner, Home, Away, AwayOwner, Stage]` (no Match — home page only)
-  - `_THIRD_COLS` = `[Group, Team, Who, PL, W, D, L, GS, GA, GD, PNT]`
+  - `_THIRD_COLS` = `[Group, Team, Who, PL, W, D, L, GS, GA, GD, PTS]`
 - **Third-place standings**: computed from `compute_third_place_table(group_standings)` in callback; top 8 rows are normal weight, bottom 4 rows dimmed (opacity 0.6, `var(--text-faint)`) to indicate non-qualifiers
 - Owner identity: left-border stripe on name cell + full row text colour (leaderboard/teams); injected owner column coloured by owner (groups/fixtures); unknown teams (e.g. "Winner of Match X") show blank owner column
 - Eliminated teams: `color: var(--eliminated)` + `text-decoration: line-through` (no red)

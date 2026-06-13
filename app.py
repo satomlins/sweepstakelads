@@ -175,7 +175,7 @@ CELL = {
     "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
 }
 
-NUMERIC_COLS = ["PL", "W", "D", "L", "GS", "GA", "GD", "PNT", "Match"]
+NUMERIC_COLS = ["PL", "W", "D", "L", "GS", "GA", "GD", "PTS", "Match"]
 
 SECTION_LABEL = {
     "fontSize": "12px",
@@ -196,13 +196,13 @@ GROUP_LABEL = {
     "margin": "0 0 8px",
 }
 
-_PERSON_COLS  = ["Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
-_TEAM_COLS    = ["Team", "Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
+_PERSON_COLS  = ["Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PTS"]
+_TEAM_COLS    = ["Team", "Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PTS"]
 _RESULT_COLS        = ["Date", "Time", "HomeOwner", "Home", "Score", "Away", "AwayOwner", "Stage"]
 _FIXTURE_COLS       = ["Match", "Date", "Time", "HomeOwner", "Home", "Away", "AwayOwner", "Stage"]
 _HOME_UPCOMING_COLS = ["Date", "Time", "HomeOwner", "Home", "Away", "AwayOwner", "Stage"]
 _OWNER_LABELS       = {"HomeOwner": "", "AwayOwner": ""}
-_THIRD_COLS   = ["Group", "Team", "Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
+_THIRD_COLS   = ["Group", "Team", "Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PTS"]
 
 
 # ---------------------------------------------------------------------------
@@ -858,7 +858,7 @@ def update_all(n, tz_offset_minutes, show_goals_data, show_flags_data, selected_
         return out
 
     # Group tables
-    group_cols = ["Team", "Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
+    group_cols = ["Team", "Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PTS"]
     g_cols = [c for c in group_cols if c not in _skip]
     group_children = []
     for g in sorted(group_standings.keys()):
@@ -884,7 +884,7 @@ def update_all(n, tz_offset_minutes, show_goals_data, show_flags_data, selected_
             + [{"if": {"column_id": "Who"}, "minWidth": "52px", "width": "52px", "maxWidth": "52px",
                "overflow": "hidden", "textOverflow": "ellipsis"}]
             + [{"if": {"column_id": c}, "minWidth": "26px", "width": "26px", "maxWidth": "26px"}
-               for c in ["PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]]
+               for c in ["PL", "W", "D", "L", "GS", "GA", "GD", "PTS"]]
         )
         group_children.append(
             html.Div(

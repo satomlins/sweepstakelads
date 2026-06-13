@@ -38,24 +38,24 @@ def _match(home, away, hs, aws, *, aet=False, pen_home=None, pen_away=None, stag
 def test_regular_win():
     stats = {}
     _apply_match(stats, _match("A", "B", 2, 0))
-    assert stats["A"] == {"W": 1, "D": 0, "L": 0, "GS": 2, "GA": 0, "PNT": 3}
-    assert stats["B"] == {"W": 0, "D": 0, "L": 1, "GS": 0, "GA": 2, "PNT": 0}
+    assert stats["A"] == {"W": 1, "D": 0, "L": 0, "GS": 2, "GA": 0, "PTS": 3}
+    assert stats["B"] == {"W": 0, "D": 0, "L": 1, "GS": 0, "GA": 2, "PTS": 0}
 
 
 def test_regular_win_away():
     stats = {}
     _apply_match(stats, _match("A", "B", 0, 1))
     assert stats["B"]["W"] == 1
-    assert stats["B"]["PNT"] == 3
+    assert stats["B"]["PTS"] == 3
     assert stats["A"]["L"] == 1
-    assert stats["A"]["PNT"] == 0
+    assert stats["A"]["PTS"] == 0
 
 
 def test_aet_win():
     stats = {}
     _apply_match(stats, _match("A", "B", 2, 1, aet=True))
-    assert stats["A"]["PNT"] == 3
-    assert stats["B"]["PNT"] == 1  # consolation point for AET loss
+    assert stats["A"]["PTS"] == 3
+    assert stats["B"]["PTS"] == 1  # consolation point for AET loss
     assert stats["A"]["GS"] == 2
     assert stats["B"]["GS"] == 1
 
@@ -64,8 +64,8 @@ def test_penalty_shootout():
     stats = {}
     _apply_match(stats, _match("A", "B", 1, 1, aet=True, pen_home=4, pen_away=3))
     assert stats["A"]["W"] == 1
-    assert stats["A"]["PNT"] == 2  # penalty winner gets 2
-    assert stats["B"]["PNT"] == 1  # penalty loser gets 1
+    assert stats["A"]["PTS"] == 2  # penalty winner gets 2
+    assert stats["B"]["PTS"] == 1  # penalty loser gets 1
     # GD should be zero (scores were level)
     assert stats["A"]["GS"] == 1
     assert stats["A"]["GA"] == 1
@@ -76,29 +76,29 @@ def test_group_draw():
     _apply_match(stats, _match("A", "B", 1, 1))
     assert stats["A"]["D"] == 1
     assert stats["B"]["D"] == 1
-    assert stats["A"]["PNT"] == 1
-    assert stats["B"]["PNT"] == 1
+    assert stats["A"]["PTS"] == 1
+    assert stats["B"]["PTS"] == 1
 
 
 def test_third_place_win_regular():
     stats = {}
     _apply_match(stats, _match("A", "B", 1, 0, stage="Match for third place"))
-    assert stats["A"]["PNT"] == 1
-    assert stats["B"]["PNT"] == 0
+    assert stats["A"]["PTS"] == 1
+    assert stats["B"]["PTS"] == 0
 
 
 def test_third_place_win_aet():
     stats = {}
     _apply_match(stats, _match("A", "B", 2, 1, aet=True, stage="Match for third place"))
-    assert stats["A"]["PNT"] == 1
-    assert stats["B"]["PNT"] == 0  # no consolation point in 3rd-place match
+    assert stats["A"]["PTS"] == 1
+    assert stats["B"]["PTS"] == 0  # no consolation point in 3rd-place match
 
 
 def test_third_place_win_pens():
     stats = {}
     _apply_match(stats, _match("A", "B", 1, 1, aet=True, pen_home=5, pen_away=4, stage="Match for third place"))
-    assert stats["A"]["PNT"] == 1
-    assert stats["B"]["PNT"] == 0
+    assert stats["A"]["PTS"] == 1
+    assert stats["B"]["PTS"] == 0
 
 
 # ---------------------------------------------------------------------------
@@ -110,7 +110,7 @@ def test_team_table_no_matches():
     matches = [_match("Mexico", "France", None, None)]  # upcoming
     df = compute_team_table(draw, matches)
     assert set(df["Team"]) == {"Mexico", "France"}
-    assert all(df["PNT"] == 0)
+    assert all(df["PTS"] == 0)
     assert all(df["Who"].isin(["Alice", "Bob"]))
 
 
@@ -120,9 +120,9 @@ def test_team_table_with_result():
     df = compute_team_table(draw, matches)
     mexico = df[df["Team"] == "Mexico"].iloc[0]
     france = df[df["Team"] == "France"].iloc[0]
-    assert mexico["PNT"] == 3
+    assert mexico["PTS"] == 3
     assert mexico["GS"] == 2
-    assert france["PNT"] == 0
+    assert france["PTS"] == 0
     assert france["L"] == 1
 
 
@@ -173,13 +173,13 @@ def test_person_table_sums_by_owner():
     assert "" not in person_df["Who"].values
     alice = person_df[person_df["Who"] == "Alice"].iloc[0]
     bob = person_df[person_df["Who"] == "Bob"].iloc[0]
-    assert alice["PNT"] == 6  # Mexico 3 + France 3
-    assert bob["PNT"] == 0
+    assert alice["PTS"] == 6  # Mexico 3 + France 3
+    assert bob["PTS"] == 0
 
 
 def test_person_table_empty():
     df = compute_person_table(pd.DataFrame())
-    assert list(df.columns) == ["Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PNT"]
+    assert list(df.columns) == ["Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PTS"]
     assert len(df) == 0
 
 
@@ -230,7 +230,7 @@ def test_group_standings_sorted():
     gs = compute_group_standings(matches)
     df = gs["A"]
     # Points should be descending
-    assert list(df["PNT"]) == sorted(df["PNT"].tolist(), reverse=True)
+    assert list(df["PTS"]) == sorted(df["PTS"].tolist(), reverse=True)
 
 
 # ---------------------------------------------------------------------------
@@ -241,16 +241,16 @@ def test_third_place_table_collects_third_teams():
     # 3 groups each with 4 teams, one set of results to produce distinct standings
     gs = {
         "A": pd.DataFrame([
-            {"Team": "Mexico", "PL": 3, "W": 3, "D": 0, "L": 0, "GS": 6, "GA": 0, "GD": 6, "PNT": 9},
-            {"Team": "France", "PL": 3, "W": 2, "D": 0, "L": 1, "GS": 4, "GA": 2, "GD": 2, "PNT": 6},
-            {"Team": "Brazil", "PL": 3, "W": 1, "D": 0, "L": 2, "GS": 2, "GA": 4, "GD": -2, "PNT": 3},
-            {"Team": "Germany", "PL": 3, "W": 0, "D": 0, "L": 3, "GS": 0, "GA": 6, "GD": -6, "PNT": 0},
+            {"Team": "Mexico", "PL": 3, "W": 3, "D": 0, "L": 0, "GS": 6, "GA": 0, "GD": 6, "PTS": 9},
+            {"Team": "France", "PL": 3, "W": 2, "D": 0, "L": 1, "GS": 4, "GA": 2, "GD": 2, "PTS": 6},
+            {"Team": "Brazil", "PL": 3, "W": 1, "D": 0, "L": 2, "GS": 2, "GA": 4, "GD": -2, "PTS": 3},
+            {"Team": "Germany", "PL": 3, "W": 0, "D": 0, "L": 3, "GS": 0, "GA": 6, "GD": -6, "PTS": 0},
         ]),
         "B": pd.DataFrame([
-            {"Team": "Spain", "PL": 3, "W": 2, "D": 1, "L": 0, "GS": 5, "GA": 1, "GD": 4, "PNT": 7},
-            {"Team": "Italy", "PL": 3, "W": 1, "D": 1, "L": 1, "GS": 3, "GA": 3, "GD": 0, "PNT": 4},
-            {"Team": "Japan", "PL": 3, "W": 1, "D": 0, "L": 2, "GS": 2, "GA": 4, "GD": -2, "PNT": 3},
-            {"Team": "Korea", "PL": 3, "W": 0, "D": 0, "L": 3, "GS": 0, "GA": 2, "GD": -2, "PNT": 0},
+            {"Team": "Spain", "PL": 3, "W": 2, "D": 1, "L": 0, "GS": 5, "GA": 1, "GD": 4, "PTS": 7},
+            {"Team": "Italy", "PL": 3, "W": 1, "D": 1, "L": 1, "GS": 3, "GA": 3, "GD": 0, "PTS": 4},
+            {"Team": "Japan", "PL": 3, "W": 1, "D": 0, "L": 2, "GS": 2, "GA": 4, "GD": -2, "PTS": 3},
+            {"Team": "Korea", "PL": 3, "W": 0, "D": 0, "L": 3, "GS": 0, "GA": 2, "GD": -2, "PTS": 0},
         ]),
     }
     result = compute_third_place_table(gs)
@@ -263,16 +263,16 @@ def test_third_place_table_collects_third_teams():
 def test_third_place_table_sorted_by_points():
     gs = {
         "A": pd.DataFrame([
-            {"Team": "A1", "PL": 3, "W": 3, "D": 0, "L": 0, "GS": 6, "GA": 0, "GD": 6, "PNT": 9},
-            {"Team": "A2", "PL": 3, "W": 1, "D": 0, "L": 2, "GS": 2, "GA": 4, "GD": -2, "PNT": 3},
-            {"Team": "A3", "PL": 3, "W": 1, "D": 0, "L": 2, "GS": 1, "GA": 3, "GD": -2, "PNT": 3},
-            {"Team": "A4", "PL": 3, "W": 0, "D": 0, "L": 3, "GS": 0, "GA": 6, "GD": -6, "PNT": 0},
+            {"Team": "A1", "PL": 3, "W": 3, "D": 0, "L": 0, "GS": 6, "GA": 0, "GD": 6, "PTS": 9},
+            {"Team": "A2", "PL": 3, "W": 1, "D": 0, "L": 2, "GS": 2, "GA": 4, "GD": -2, "PTS": 3},
+            {"Team": "A3", "PL": 3, "W": 1, "D": 0, "L": 2, "GS": 1, "GA": 3, "GD": -2, "PTS": 3},
+            {"Team": "A4", "PL": 3, "W": 0, "D": 0, "L": 3, "GS": 0, "GA": 6, "GD": -6, "PTS": 0},
         ]),
         "B": pd.DataFrame([
-            {"Team": "B1", "PL": 3, "W": 3, "D": 0, "L": 0, "GS": 9, "GA": 0, "GD": 9, "PNT": 9},
-            {"Team": "B2", "PL": 3, "W": 2, "D": 0, "L": 1, "GS": 4, "GA": 2, "GD": 2, "PNT": 6},
-            {"Team": "B3", "PL": 3, "W": 0, "D": 1, "L": 2, "GS": 1, "GA": 4, "GD": -3, "PNT": 1},
-            {"Team": "B4", "PL": 3, "W": 0, "D": 0, "L": 3, "GS": 0, "GA": 8, "GD": -8, "PNT": 0},
+            {"Team": "B1", "PL": 3, "W": 3, "D": 0, "L": 0, "GS": 9, "GA": 0, "GD": 9, "PTS": 9},
+            {"Team": "B2", "PL": 3, "W": 2, "D": 0, "L": 1, "GS": 4, "GA": 2, "GD": 2, "PTS": 6},
+            {"Team": "B3", "PL": 3, "W": 0, "D": 1, "L": 2, "GS": 1, "GA": 4, "GD": -3, "PTS": 1},
+            {"Team": "B4", "PL": 3, "W": 0, "D": 0, "L": 3, "GS": 0, "GA": 8, "GD": -8, "PTS": 0},
         ]),
     }
     result = compute_third_place_table(gs)
