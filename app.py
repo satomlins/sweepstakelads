@@ -468,18 +468,9 @@ _NUMERIC_ALIGN   = _numeric_align(NUMERIC_COLS)
 _PERSON_FMT      = _NUMERIC_ALIGN + _person_stripe_rules("Who") + _person_row_colour_rules()
 _TEAM_ROW_COLOUR = _team_row_colour_rules()
 _WHO_COL_COLOUR  = _owner_col_colour_rules("Who")
-_FIXTURE_OWNER_FMT = (
-    _owner_col_colour_rules("HomeOwner") + _owner_col_colour_rules("AwayOwner")
-)
 _TP_DIM_RULES = [
     {"if": {"row_index": i}, "color": "var(--text-faint)", "opacity": "0.6"}
     for i in range(8, 12)
-]
-_WINNER_BOLD_RULES = [
-    {"if": {"filter_query": '{Winner} = "HOME"', "column_id": "Home"},      "fontWeight": "700"},
-    {"if": {"filter_query": '{Winner} = "HOME"', "column_id": "HomeOwner"}, "fontWeight": "700"},
-    {"if": {"filter_query": '{Winner} = "AWAY"', "column_id": "Away"},      "fontWeight": "700"},
-    {"if": {"filter_query": '{Winner} = "AWAY"', "column_id": "AwayOwner"}, "fontWeight": "700"},
 ]
 
 
@@ -595,16 +586,14 @@ app.layout = html.Div(
                                 html.Div(
                                     [
                                         html.H3("Recent results", style=SECTION_LABEL),
-                                        html.Div(_make_table("recent-table", _RESULT_COLS, col_labels=_OWNER_LABELS), className="desktop-only"),
-                                        html.Div(id="recent-cards", className="mobile-only"),
+                                        html.Div(id="recent-cards"),
                                     ],
                                     className="six columns",
                                 ),
                                 html.Div(
                                     [
                                         html.H3("Upcoming fixtures", style=SECTION_LABEL),
-                                        html.Div(_make_table("upcoming-table", _HOME_UPCOMING_COLS, col_labels=_OWNER_LABELS), className="desktop-only"),
-                                        html.Div(id="upcoming-cards", className="mobile-only"),
+                                        html.Div(id="upcoming-cards"),
                                     ],
                                     className="six columns",
                                 ),
@@ -700,15 +689,13 @@ app.layout = html.Div(
                         html.Div(
                             [
                                 html.H3("Results", style=SECTION_LABEL),
-                                html.Div(_make_table("all-results-table", _RESULT_COLS, col_labels=_OWNER_LABELS), className="desktop-only"),
-                                html.Div(id="all-results-cards", className="mobile-only"),
+                                html.Div(id="all-results-cards"),
                             ],
                         ),
                         html.Div(
                             [
                                 html.H3("Fixtures", style=SECTION_LABEL),
-                                html.Div(_make_table("all-upcoming-table", _FIXTURE_COLS, col_labels=_OWNER_LABELS), className="desktop-only"),
-                                html.Div(id="all-upcoming-cards", className="mobile-only"),
+                                html.Div(id="all-upcoming-cards"),
                             ],
                             className="section-gap",
                         ),
@@ -863,14 +850,6 @@ def toggle_flags(_n, current):
     Output("third-place-table",  "data"),
     Output("third-place-table",  "style_data_conditional"),
     Output("third-place-table",  "columns"),
-    Output("recent-table",       "data"),
-    Output("recent-table",       "style_data_conditional"),
-    Output("upcoming-table",     "data"),
-    Output("upcoming-table",     "style_data_conditional"),
-    Output("all-results-table",  "data"),
-    Output("all-results-table",  "style_data_conditional"),
-    Output("all-upcoming-table", "data"),
-    Output("all-upcoming-table", "style_data_conditional"),
     Output("recent-cards",       "children"),
     Output("upcoming-cards",     "children"),
     Output("all-results-cards",  "children"),
@@ -992,12 +971,6 @@ def update_all(n, tz_offset_minutes, show_goals_data, show_flags_data, selected_
     )
     tp_data = tp_df[third_cols].to_dict("records") if not tp_df.empty else []
 
-    # Fixture formatting shared across result/upcoming tables
-    fixture_colours = _fixture_colour_rules(draw)
-    fixture_stripes = _team_stripe_rules(draw, "Home") + _team_stripe_rules(draw, "Away")
-    fixture_fmt = fixture_stripes + fixture_colours + _FIXTURE_OWNER_FMT
-    results_fmt = fixture_fmt + _WINNER_BOLD_RULES
-
     # Recent results (home page — last 10, newest first)
     finished = fixtures[fixtures["Status"] == "Finished"].tail(10).iloc[::-1]
     finished_loc = _localize_fixtures(finished, tz_minutes)
@@ -1046,14 +1019,6 @@ def update_all(n, tz_offset_minutes, show_goals_data, show_flags_data, selected_
         tp_data,
         tp_fmt,
         _cols(third_cols),
-        recent_out.to_dict("records"),
-        results_fmt,
-        upcoming_out.to_dict("records"),
-        fixture_fmt,
-        all_results_out.to_dict("records"),
-        results_fmt,
-        all_upcoming_out.to_dict("records"),
-        fixture_fmt,
         _fixture_cards(recent_out, is_result=True),
         _fixture_cards(upcoming_out, is_result=False),
         _fixture_cards(all_results_out, is_result=True),

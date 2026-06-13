@@ -394,11 +394,8 @@ a:visited {
 }
 
 /* ------------------------------------------------------------
-   Mobile card layout — fixture/result tables
+   Card layout — fixture/result tables (all viewports)
    ------------------------------------------------------------ */
-.mobile-only  { display: none; }
-.desktop-only { display: block; }
-
 .card-date-header {
   font-size: 14px;
   font-weight: 600;
@@ -477,11 +474,6 @@ a:visited {
   padding: 0 8px;
   color: var(--text-faint);
   flex-shrink: 0;
-}
-
-@media screen and (max-width: 480px) {
-  .mobile-only  { display: block; }
-  .desktop-only { display: none; }
 }
 
 @media screen and (max-width: 480px) {
