@@ -356,6 +356,67 @@ def _apply_flags(df: pd.DataFrame, cols: list[str], show: bool) -> pd.DataFrame:
     return out
 
 
+def _owner_span(name: str) -> html.Span:
+    if name:
+        return html.Span(name, style={"color": COLOURS.get(name, "var(--text-faint)")})
+    return html.Span("—", style={"color": "var(--text-faint)"})
+
+
+def _fixture_cards(df: pd.DataFrame, is_result: bool = True) -> html.Div:
+    """Build mobile card layout from a fixture/result DataFrame."""
+    if df.empty:
+        return html.Div(className="mobile-cards")
+    cards = []
+    current_date = None
+    for _, row in df.iterrows():
+        date = row.get("Date", "")
+        if date != current_date:
+            current_date = date
+            cards.append(html.H4(date, className="card-date-header"))
+        meta_div = html.Div(
+            f"{row.get('Stage', '')} · {row.get('Time', '')}",
+            className="card-meta",
+        )
+        home = row.get("Home", "")
+        away = row.get("Away", "")
+        home_owner = row.get("HomeOwner", "")
+        away_owner = row.get("AwayOwner", "")
+        home_colour = COLOURS.get(home_owner, "var(--text)") if home_owner else "var(--text)"
+        away_colour = COLOURS.get(away_owner, "var(--text)") if away_owner else "var(--text)"
+        if is_result:
+            score = row.get("Score", "").replace("–", " – ", 1)
+            winner = row.get("Winner", "")
+            home_el = html.Span(home, className="winner", style={"color": home_colour}) if winner == "HOME" else html.Span(home, style={"color": home_colour})
+            away_el = html.Span(away, className="winner", style={"color": away_colour}) if winner == "AWAY" else html.Span(away, style={"color": away_colour})
+            matchup_div = html.Div(
+                [
+                    html.Div(home_el, className="card-matchup-home"),
+                    html.Div(score, className="card-matchup-score"),
+                    html.Div(away_el, className="card-matchup-away"),
+                ],
+                className="card-matchup",
+            )
+        else:
+            matchup_div = html.Div(
+                [
+                    html.Div(html.Span(home, style={"color": home_colour}), className="card-matchup-home"),
+                    html.Div("v", className="card-matchup-score"),
+                    html.Div(html.Span(away, style={"color": away_colour}), className="card-matchup-away"),
+                ],
+                className="card-matchup",
+            )
+        owner_div = html.Div(
+            [
+                html.Div(_owner_span(home_owner), className="card-owner-home"),
+                html.Div("·", className="card-owner-sep"),
+                html.Div(_owner_span(away_owner), className="card-owner-away"),
+            ],
+            className="card-owners",
+        )
+        cards.append(html.Div([meta_div, matchup_div, owner_div], className="match-card"))
+    return html.Div(cards, className="mobile-cards")
+
+
 def _localize_fixtures(df: pd.DataFrame, tz_minutes: int) -> pd.DataFrame:
     """Replace Date/Time columns with timezone-correct values derived from DatetimeUTC.
 
@@ -534,14 +595,16 @@ app.layout = html.Div(
                                 html.Div(
                                     [
                                         html.H3("Recent results", style=SECTION_LABEL),
-                                        _make_table("recent-table", _RESULT_COLS, col_labels=_OWNER_LABELS),
+                                        html.Div(_make_table("recent-table", _RESULT_COLS, col_labels=_OWNER_LABELS), className="desktop-only"),
+                                        html.Div(id="recent-cards", className="mobile-only"),
                                     ],
                                     className="six columns",
                                 ),
                                 html.Div(
                                     [
                                         html.H3("Upcoming fixtures", style=SECTION_LABEL),
-                                        _make_table("upcoming-table", _HOME_UPCOMING_COLS, col_labels=_OWNER_LABELS),
+                                        html.Div(_make_table("upcoming-table", _HOME_UPCOMING_COLS, col_labels=_OWNER_LABELS), className="desktop-only"),
+                                        html.Div(id="upcoming-cards", className="mobile-only"),
                                     ],
                                     className="six columns",
                                 ),
@@ -637,13 +700,15 @@ app.layout = html.Div(
                         html.Div(
                             [
                                 html.H3("Results", style=SECTION_LABEL),
-                                _make_table("all-results-table", _RESULT_COLS, col_labels=_OWNER_LABELS),
+                                html.Div(_make_table("all-results-table", _RESULT_COLS, col_labels=_OWNER_LABELS), className="desktop-only"),
+                                html.Div(id="all-results-cards", className="mobile-only"),
                             ],
                         ),
                         html.Div(
                             [
                                 html.H3("Fixtures", style=SECTION_LABEL),
-                                _make_table("all-upcoming-table", _FIXTURE_COLS, col_labels=_OWNER_LABELS),
+                                html.Div(_make_table("all-upcoming-table", _FIXTURE_COLS, col_labels=_OWNER_LABELS), className="desktop-only"),
+                                html.Div(id="all-upcoming-cards", className="mobile-only"),
                             ],
                             className="section-gap",
                         ),
@@ -806,6 +871,10 @@ def toggle_flags(_n, current):
     Output("all-results-table",  "style_data_conditional"),
     Output("all-upcoming-table", "data"),
     Output("all-upcoming-table", "style_data_conditional"),
+    Output("recent-cards",       "children"),
+    Output("upcoming-cards",     "children"),
+    Output("all-results-cards",  "children"),
+    Output("all-upcoming-cards", "children"),
     Output("tz-label",           "children"),
     Output("last-updated",       "children"),
     Input("interval",      "n_intervals"),
@@ -985,6 +1054,10 @@ def update_all(n, tz_offset_minutes, show_goals_data, show_flags_data, selected_
         results_fmt,
         all_upcoming_out.to_dict("records"),
         fixture_fmt,
+        _fixture_cards(recent_out, is_result=True),
+        _fixture_cards(upcoming_out, is_result=False),
+        _fixture_cards(all_results_out, is_result=True),
+        _fixture_cards(all_upcoming_out, is_result=False),
         _tz_label(tz_minutes),
         "Last updated: {} {}".format(*_fmt_local(timestamp, tz_minutes)),
     )
