@@ -712,7 +712,7 @@ app.layout = html.Div(
                                 html.Span(
                                     [
                                         html.Span(
-                                            f"© {pd.Timestamp.now().year} Sweepstakelads",
+                                            f"© {pd.Timestamp.now().year} sweepstakelads",
                                             className="footer-copy-main",
                                         ),
                                         html.Span(" · ", className="footer-copy-sep"),
