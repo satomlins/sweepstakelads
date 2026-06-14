@@ -346,13 +346,16 @@ def _tz_label(tz_minutes: int) -> str:
     return f"All times UTC{sign}{h}" if m == 0 else f"All times UTC{sign}{h}:{m:02d}"
 
 
-def _apply_flags(df: pd.DataFrame, cols: list[str], show: bool) -> pd.DataFrame:
-    if not show or df.empty:
+def _apply_flags(df: pd.DataFrame, cols: list[str], show_names: bool) -> pd.DataFrame:
+    if df.empty:
         return df.copy()
     out = df.copy()
     for col in cols:
         if col in out.columns:
-            out[col] = out[col].map(lambda v: FLAGS.get(v, v))
+            if show_names:
+                out[col] = out[col].map(lambda v: f"{FLAGS[v]} {v}" if v in FLAGS else v)
+            else:
+                out[col] = out[col].map(lambda v: FLAGS.get(v, v))
     return out
 
 
@@ -362,8 +365,8 @@ def _owner_span(name: str) -> html.Span:
     return html.Span("—", style={"color": "var(--text-faint)"})
 
 
-def _fixture_cards(df: pd.DataFrame, is_result: bool = True) -> html.Div:
-    """Build mobile card layout from a fixture/result DataFrame."""
+def _fixture_cards(df: pd.DataFrame, is_result: bool = True, show_names: bool = True) -> html.Div:
+    """Build card layout from a fixture/result DataFrame."""
     if df.empty:
         return html.Div(className="mobile-cards")
     cards = []
@@ -379,6 +382,13 @@ def _fixture_cards(df: pd.DataFrame, is_result: bool = True) -> html.Div:
         )
         home = row.get("Home", "")
         away = row.get("Away", "")
+        home_flag = FLAGS.get(home, "")
+        away_flag = FLAGS.get(away, "")
+        home_label = f"{home} {home_flag}" if home_flag else home
+        away_label = f"{away_flag} {away}" if away_flag else away
+        if not show_names:
+            home_label = home_flag or home
+            away_label = away_flag or away
         home_owner = row.get("HomeOwner", "")
         away_owner = row.get("AwayOwner", "")
         home_colour = COLOURS.get(home_owner, "var(--text)") if home_owner else "var(--text)"
@@ -386,8 +396,8 @@ def _fixture_cards(df: pd.DataFrame, is_result: bool = True) -> html.Div:
         if is_result:
             score = row.get("Score", "").replace("–", " – ", 1)
             winner = row.get("Winner", "")
-            home_el = html.Span(home, className="winner", style={"color": home_colour}) if winner == "HOME" else html.Span(home, style={"color": home_colour})
-            away_el = html.Span(away, className="winner", style={"color": away_colour}) if winner == "AWAY" else html.Span(away, style={"color": away_colour})
+            home_el = html.Span(home_label, className="winner", style={"color": home_colour}) if winner == "HOME" else html.Span(home_label, style={"color": home_colour})
+            away_el = html.Span(away_label, className="winner", style={"color": away_colour}) if winner == "AWAY" else html.Span(away_label, style={"color": away_colour})
             matchup_div = html.Div(
                 [
                     html.Div(home_el, className="card-matchup-home"),
@@ -399,9 +409,9 @@ def _fixture_cards(df: pd.DataFrame, is_result: bool = True) -> html.Div:
         else:
             matchup_div = html.Div(
                 [
-                    html.Div(html.Span(home, style={"color": home_colour}), className="card-matchup-home"),
+                    html.Div(html.Span(home_label, style={"color": home_colour}), className="card-matchup-home"),
                     html.Div("v", className="card-matchup-score"),
-                    html.Div(html.Span(away, style={"color": away_colour}), className="card-matchup-away"),
+                    html.Div(html.Span(away_label, style={"color": away_colour}), className="card-matchup-away"),
                 ],
                 className="card-matchup",
             )
@@ -491,7 +501,7 @@ app.layout = html.Div(
         dcc.Interval(id="interval", interval=5 * 60 * 1000),
         dcc.Store(id="tz-offset", data=None),
         dcc.Store(id="show-goals", data=False),
-        dcc.Store(id="show-flags", data=False),
+        dcc.Store(id="show-flags", data=True),
 
         html.Main(
             [
@@ -731,7 +741,7 @@ app.layout = html.Div(
                                     className="goals-toggle-btn",
                                 ),
                                 html.Button(
-                                    "Show flags",
+                                    "Hide names",
                                     id="flags-toggle",
                                     n_clicks=0,
                                     className="goals-toggle-btn",
@@ -833,7 +843,7 @@ def toggle_goals(_n, current):
 )
 def toggle_flags(_n, current):
     show = not current
-    return show, "Show names" if show else "Show flags"
+    return show, "Hide names" if show else "Show names"
 
 
 @app.callback(
@@ -865,7 +875,7 @@ def toggle_flags(_n, current):
 def update_all(n, tz_offset_minutes, show_goals_data, show_flags_data, selected_owners):
     tz_minutes = tz_offset_minutes if tz_offset_minutes is not None else 0
     show_goals = bool(show_goals_data)
-    show_flags = bool(show_flags_data)
+    show_names = bool(show_flags_data)
     selected_owners = selected_owners or []
     _skip = set() if show_goals else {"GS", "GA"}
 
@@ -880,7 +890,7 @@ def update_all(n, tz_offset_minutes, show_goals_data, show_flags_data, selected_
     draw = load_draw()
 
     timestamp    = data["timestamp"]
-    team_table   = _apply_flags(data["team_table"],   ["Team"], show_flags)
+    team_table   = _apply_flags(data["team_table"],   ["Team"], show_names)
     person_table = data["person_table"]
     group_standings = data["group_standings"]
     fixtures     = data["fixtures"].copy()
@@ -917,7 +927,7 @@ def update_all(n, tz_offset_minutes, show_goals_data, show_flags_data, selected_
         else:
             gdf = gdf.copy()
             gdf["Who"] = ""
-        gdf = _apply_flags(gdf, ["Team"], show_flags)
+        gdf = _apply_flags(gdf, ["Team"], show_names)
         gfmt = (
             _NUMERIC_ALIGN
             + _team_stripe_rules(draw, "Team")
@@ -927,7 +937,7 @@ def update_all(n, tz_offset_minutes, show_goals_data, show_flags_data, selected_
         cell = {**CELL, "padding": "5px 6px", "fontSize": "12px"}
         hdr  = {**HEADER, "padding": "8px 6px"}
         group_col_widths = (
-            [{"if": {"column_id": "Team"}, "minWidth": "80px", "width": "80px", "maxWidth": "80px",
+            [{"if": {"column_id": "Team"}, "minWidth": "110px", "width": "110px", "maxWidth": "110px",
               "overflow": "hidden", "textOverflow": "ellipsis"}]
             + [{"if": {"column_id": "Who"}, "minWidth": "52px", "width": "52px", "maxWidth": "52px",
                "overflow": "hidden", "textOverflow": "ellipsis"}]
@@ -961,7 +971,7 @@ def update_all(n, tz_offset_minutes, show_goals_data, show_flags_data, selected_
     else:
         tp_df = tp_df.copy()
         tp_df["Who"] = ""
-    tp_df = _apply_flags(tp_df, ["Team"], show_flags)
+    tp_df = _apply_flags(tp_df, ["Team"], show_names)
     tp_fmt = (
         _NUMERIC_ALIGN
         + _team_stripe_rules(draw, "Team")
@@ -975,13 +985,11 @@ def update_all(n, tz_offset_minutes, show_goals_data, show_flags_data, selected_
     finished = fixtures[fixtures["Status"] == "Finished"].tail(10).iloc[::-1]
     finished_loc = _localize_fixtures(finished, tz_minutes)
     recent_out = _add_owner_cols(finished_loc[["Date", "Time", "Home", "Score", "Away", "Stage", "Winner"]])
-    recent_out = _apply_flags(recent_out, ["Home", "Away"], show_flags)
 
     # Upcoming fixtures (home page — next 10, ascending datetime order)
     upcoming = fixtures[fixtures["Status"] == "Upcoming"].head(10)
     upcoming_loc = _localize_fixtures(upcoming, tz_minutes)
     upcoming_out = _add_owner_cols(upcoming_loc[["Match", "Date", "Time", "Home", "Away", "Stage"]])
-    upcoming_out = _apply_flags(upcoming_out, ["Home", "Away"], show_flags)
 
     # All results (fixtures page — newest first)
     all_finished = fixtures[fixtures["Status"] == "Finished"].iloc[::-1]
@@ -992,7 +1000,6 @@ def update_all(n, tz_offset_minutes, show_goals_data, show_flags_data, selected_
             all_results_out["HomeOwner"].isin(selected_owners)
             | all_results_out["AwayOwner"].isin(selected_owners)
         ]
-    all_results_out = _apply_flags(all_results_out, ["Home", "Away"], show_flags)
 
     # All upcoming (fixtures page — ascending datetime order)
     all_upcoming = fixtures[fixtures["Status"] == "Upcoming"]
@@ -1003,7 +1010,6 @@ def update_all(n, tz_offset_minutes, show_goals_data, show_flags_data, selected_
             all_upcoming_out["HomeOwner"].isin(selected_owners)
             | all_upcoming_out["AwayOwner"].isin(selected_owners)
         ]
-    all_upcoming_out = _apply_flags(all_upcoming_out, ["Home", "Away"], show_flags)
 
     return (
         person_table.to_dict("records"),
@@ -1019,10 +1025,10 @@ def update_all(n, tz_offset_minutes, show_goals_data, show_flags_data, selected_
         tp_data,
         tp_fmt,
         _cols(third_cols),
-        _fixture_cards(recent_out, is_result=True),
-        _fixture_cards(upcoming_out, is_result=False),
-        _fixture_cards(all_results_out, is_result=True),
-        _fixture_cards(all_upcoming_out, is_result=False),
+        _fixture_cards(recent_out, is_result=True, show_names=show_names),
+        _fixture_cards(upcoming_out, is_result=False, show_names=show_names),
+        _fixture_cards(all_results_out, is_result=True, show_names=show_names),
+        _fixture_cards(all_upcoming_out, is_result=False, show_names=show_names),
         _tz_label(tz_minutes),
         "Last updated: {} {}".format(*_fmt_local(timestamp, tz_minutes)),
     )
