@@ -262,7 +262,7 @@ main {
    ------------------------------------------------------------ */
 .groups-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 24px;
 }
 
@@ -379,10 +379,6 @@ a:visited {
   .seven.columns {
     flex: none;
     width: 100%;
-  }
-
-  .groups-grid {
-    grid-template-columns: repeat(2, 1fr);
   }
 
   .tab-link {
