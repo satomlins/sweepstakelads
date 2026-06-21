@@ -9,7 +9,16 @@ from pathlib import Path
 
 import pytest
 
-from scraper import parse_matches, _parse_datetime_utc, _extract_code, _code_to_name
+from unittest.mock import MagicMock, patch
+
+from scraper import (
+    parse_matches,
+    _parse_datetime_utc,
+    _extract_code,
+    _code_to_name,
+    _extract_labeled_section,
+    _resolve_transclusions,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -215,3 +224,86 @@ def test_parse_aet_without_pens():
     assert m["aet"] is True
     assert m["pen_home"] is None
     assert m["pen_away"] is None
+
+
+# ---------------------------------------------------------------------------
+# Transclusion resolution tests
+# ---------------------------------------------------------------------------
+
+def test_extract_labeled_section():
+    wikitext = (
+        "preamble\n"
+        "<section begin=F4/>{{#invoke:football box|main\n"
+        "|date={{Start date|2026|6|21}}\n"
+        "|team1={{#invoke:flag|fb-rt|TUN}}\n"
+        "|score=0–0\n"
+        "|team2={{#invoke:flag|fb|JPN}}\n"
+        "}}<section end=F4/>\n"
+        "postamble"
+    )
+    result = _extract_labeled_section(wikitext, "F4")
+    assert "football box" in result
+    assert "TUN" in result
+    assert "JPN" in result
+    assert "preamble" not in result
+    assert "postamble" not in result
+
+
+def test_extract_labeled_section_missing():
+    assert _extract_labeled_section("no sections here", "F4") == ""
+
+
+@patch("scraper.requests.get")
+def test_resolve_transclusions_restores_match(mock_get):
+    target_wikitext = (
+        "<section begin=F4/>{{#invoke:football box|main\n"
+        "|date={{Start date|2026|6|21}}\n"
+        "|time=11:00 p.m. UTC-5\n"
+        "|team1={{#invoke:flag|fb-rt|TUN}}\n"
+        "|score=0–0\n"
+        "|team2={{#invoke:flag|fb|JPN}}\n"
+        "}}<section end=F4/>"
+    )
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {
+        "query": {
+            "pages": [
+                {
+                    "title": "Tunisia v Japan (2026 FIFA World Cup)",
+                    "revisions": [{"content": target_wikitext}],
+                }
+            ]
+        }
+    }
+    mock_resp.raise_for_status = MagicMock()
+    mock_get.return_value = mock_resp
+
+    pages = {
+        "2026 FIFA World Cup Group F": (
+            "==Matchday 2==\n"
+            "{{#lst:Tunisia v Japan (2026 FIFA World Cup)|F4}}\n"
+        )
+    }
+    resolved = _resolve_transclusions(pages)
+    assert "football box" in resolved["2026 FIFA World Cup Group F"]
+
+    matches = parse_matches(
+        resolved["2026 FIFA World Cup Group F"],
+        stage_override="Group F",
+    )
+    teams = [(m["home_team"], m["away_team"]) for m in matches]
+    assert ("Tunisia", "Japan") in teams
+
+
+def test_resolve_transclusions_no_ops_without_lst():
+    pages = {"Some Page": "{{#invoke:football box|main|...}}"}
+    assert _resolve_transclusions(pages) is pages
+
+
+@patch("scraper.requests.get", side_effect=Exception("network error"))
+def test_resolve_transclusions_graceful_on_fetch_failure(mock_get):
+    pages = {
+        "Group F": "before\n{{#lst:Missing Page|F4}}\nafter"
+    }
+    result = _resolve_transclusions(pages)
+    assert "{{#lst:Missing Page|F4}}" in result["Group F"]

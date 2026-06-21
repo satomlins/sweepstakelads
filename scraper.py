@@ -143,6 +143,8 @@ HEADERS = {
 
 BATCH_TITLES = GROUP_PAGES + [KNOCKOUT_PAGE, FINAL_PAGE]
 
+_LST_PATTERN = re.compile(r"\{\{#lst:([^|}\n]+)\|([^}\n]+)\}\}", re.IGNORECASE)
+
 
 def fetch_all_wikitext() -> dict[str, str]:
     """Fetch wikitext for all 13 pages in a single HTTP request."""
@@ -297,6 +299,77 @@ def _parse_datetime_utc(match_date: date | None, time_str: str) -> datetime | No
     return local_dt.astimezone(timezone.utc)
 
 
+def _extract_labeled_section(wikitext: str, section_name: str) -> str:
+    """Extract content between <section begin=name/> and <section end=name/> markers."""
+    pattern = re.compile(
+        rf"<section\s+begin\s*=\s*{re.escape(section_name)}\s*/>"
+        rf"(.*?)"
+        rf"<section\s+end\s*=\s*{re.escape(section_name)}\s*/>",
+        re.DOTALL | re.IGNORECASE,
+    )
+    m = pattern.search(wikitext)
+    return m.group(1) if m else ""
+
+
+def _resolve_transclusions(pages: dict[str, str]) -> dict[str, str]:
+    """Replace {{#lst:Page|section}} transclusions with actual content."""
+    targets: dict[str, set[str]] = {}
+    for wikitext in pages.values():
+        for m in _LST_PATTERN.finditer(wikitext):
+            page_title = m.group(1).strip()
+            if page_title not in pages:
+                targets.setdefault(page_title, set()).add(m.group(2).strip())
+
+    if not targets:
+        return pages
+
+    titles_to_fetch = list(targets)
+    fetched: dict[str, str] = {}
+    if titles_to_fetch:
+        try:
+            resp = requests.get(
+                WIKIPEDIA_API,
+                params={
+                    "action": "query",
+                    "prop": "revisions",
+                    "rvprop": "content",
+                    "titles": "|".join(titles_to_fetch),
+                    "format": "json",
+                    "formatversion": "2",
+                },
+                headers=HEADERS,
+                timeout=30,
+            )
+            resp.raise_for_status()
+            for page in resp.json()["query"]["pages"]:
+                if "revisions" in page:
+                    fetched[page["title"]] = page["revisions"][0]["content"]
+        except Exception as exc:
+            logger.warning("Failed to fetch transclusion targets: %s", exc)
+            return pages
+
+    all_sources = {**pages, **fetched}
+
+    resolved = {}
+    for title, wikitext in pages.items():
+        def replacer(m: re.Match, _sources: dict = all_sources) -> str:
+            page_title = m.group(1).strip()
+            section_name = m.group(2).strip()
+            source = _sources.get(page_title, "")
+            if not source:
+                logger.warning("Transclusion target not found: %s", page_title)
+                return m.group(0)
+            content = _extract_labeled_section(source, section_name)
+            if not content:
+                logger.warning("Section '%s' not found in '%s'", section_name, page_title)
+                return m.group(0)
+            return content
+
+        resolved[title] = _LST_PATTERN.sub(replacer, wikitext)
+
+    return resolved
+
+
 def parse_matches(wikitext: str, stage_override: str = "") -> list[dict]:
     """Parse all football box templates from wikitext into match dicts."""
     boxes = _find_football_boxes(wikitext)
@@ -366,6 +439,8 @@ def fetch_all_matches() -> list[dict]:
     missing = [t for t in BATCH_TITLES if t not in pages]
     if missing:
         logger.warning("Pages missing from Wikipedia response: %s", missing)
+
+    pages = _resolve_transclusions(pages)
 
     matches: list[dict] = []
     for title, wikitext in pages.items():

@@ -40,7 +40,8 @@ Strict separation of concerns — each module has one job:
 
 **`scraper.py`** — Wikipedia-only, no scoring logic:
 - Fetches all 13 pages in a **single batched HTTP request** via `action=query&prop=revisions&rvprop=content&titles=<pipe-joined titles>` (one ~215 KB call vs 13 sequential calls)
-- `fetch_all_wikitext()` returns `{page_title: wikitext}` dict; `fetch_all_matches()` parses all pages and returns the flat match list
+- `fetch_all_wikitext()` returns `{page_title: wikitext}` dict; `fetch_all_matches()` resolves any `{{#lst:}}` transclusions, then parses all pages and returns the flat match list
+- `_resolve_transclusions(pages)` runs after `fetch_all_wikitext()` and before parsing; it finds `{{#lst:Page|section}}` labeled section transclusions in the fetched wikitext, batch-fetches any target pages not already in the set, extracts content between `<section begin=X/>` / `<section end=X/>` markers, and replaces the transclusion tags with the resolved content. Falls back to leaving the tag in place (silently skipped by the parser) on any failure. This handles Wikipedia editors moving match details to dedicated articles - common for notable matches as the tournament progresses.
 - Parses `{{footballbox}}` / `{{footballbox collapsible}}` templates
 - Returns a flat list of match dicts with keys: `date`, `time`, `datetime_utc`, `home_team`, `away_team`, `home_score`, `away_score`, `pen_home`, `pen_away`, `aet`, `stage`, `status`
 - `datetime_utc` is a `datetime` object in UTC parsed from Wikipedia's "H:MM a.m./p.m. UTC±N" format (handles Unicode minus U+2212 and `<includeonly>` HTML tags); `None` if unparseable
