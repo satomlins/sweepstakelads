@@ -288,7 +288,9 @@ def test_third_place_table_empty_groups():
 
 
 # ---------------------------------------------------------------------------
-# _team_out_status — mathematical elimination
+# _team_out_status — simple elimination rule
+# A team is Out only if it has played 3 group matches AND is either bottom of
+# its group or in the bottom 4 of the third-place table. Otherwise In.
 # ---------------------------------------------------------------------------
 
 def _complete_group(t1_pts=9, t2_pts=6, t3=("T3", 3, 1, 2, 1), t4_pts=0,
@@ -314,80 +316,54 @@ def test_team_out_fourth_in_completed_group_is_out():
     assert _team_out_status("T4", gs, []) == "Out"
 
 
-def test_team_out_third_completed_group_but_other_groups_pending_is_in():
-    # A is complete; B has only 1 played match so its 3rd-placer is undetermined.
-    # Even one free variable plus 0 above_or_tied → worst-case rank well below 9.
-    gs = {
-        "A": _complete_group(),
-        "B": pd.DataFrame([
-            {"Team": "U1", "PL": 1, "W": 1, "D": 0, "L": 0, "GS": 1, "GA": 0, "GD": 1, "PTS": 3},
-            {"Team": "U2", "PL": 1, "W": 0, "D": 0, "L": 1, "GS": 0, "GA": 1, "GD": -1, "PTS": 0},
-            {"Team": "U3", "PL": 0, "W": 0, "D": 0, "L": 0, "GS": 0, "GA": 0, "GD": 0, "PTS": 0},
-            {"Team": "U4", "PL": 0, "W": 0, "D": 0, "L": 0, "GS": 0, "GA": 0, "GD": 0, "PTS": 0},
-        ]),
-    }
+def test_team_out_pl_less_than_three_stays_in():
+    # Team has only played 2 group matches — must stay In even if currently last.
+    gdf = pd.DataFrame([
+        {"Team": "X1", "PL": 2, "W": 2, "D": 0, "L": 0, "GS": 4, "GA": 0, "GD": 4, "PTS": 6},
+        {"Team": "X2", "PL": 2, "W": 1, "D": 0, "L": 1, "GS": 2, "GA": 1, "GD": 1, "PTS": 3},
+        {"Team": "X3", "PL": 2, "W": 1, "D": 0, "L": 1, "GS": 1, "GA": 2, "GD": -1, "PTS": 3},
+        {"Team": "X4", "PL": 2, "W": 0, "D": 0, "L": 2, "GS": 0, "GA": 4, "GD": -4, "PTS": 0},
+    ])
+    assert _team_out_status("X4", {"A": gdf}, []) == "In"
+
+
+def test_team_out_third_place_bottom_four_is_out():
+    # 12 complete groups. Third-placers are ranked PTS→GD→GS desc, bottom 4 → Out.
+    # Build groups with strictly distinct 3rd-place PTS values so ordering is stable.
+    groups: dict[str, pd.DataFrame] = {}
+    letters = "ABCDEFGHIJKL"
+    for i, letter in enumerate(letters):
+        # 3rd-placer PTS decreases as i grows: A has highest, L has lowest.
+        third_pts = len(letters) - i  # 12, 11, ..., 1
+        groups[letter] = pd.DataFrame([
+            {"Team": f"{letter}1", "PL": 3, "W": 3, "D": 0, "L": 0, "GS": 9, "GA": 0, "GD": 9, "PTS": 9},
+            {"Team": f"{letter}2", "PL": 3, "W": 2, "D": 0, "L": 1, "GS": 6, "GA": 2, "GD": 4, "PTS": 6},
+            {"Team": f"{letter}3", "PL": 3, "W": 0, "D": 0, "L": 3, "GS": 1, "GA": 2, "GD": -1, "PTS": third_pts},
+            {"Team": f"{letter}4", "PL": 3, "W": 0, "D": 0, "L": 3, "GS": 0, "GA": 9, "GD": -9, "PTS": 0},
+        ])
+    # Top 8 third-placers: A3..H3 → In. Bottom 4: I3, J3, K3, L3 → Out.
+    for letter in "ABCDEFGH":
+        assert _team_out_status(f"{letter}3", groups, []) == "In", f"{letter}3 should be In"
+    for letter in "IJKL":
+        assert _team_out_status(f"{letter}3", groups, []) == "Out", f"{letter}3 should be Out"
+
+
+def test_team_out_third_with_few_groups_stays_in():
+    # Fewer than 4 groups means the third-place table has < 4 rows; nobody is
+    # in the "bottom 4". A 3rd-place team that isn't bottom of its group stays In.
+    gs = {"A": _complete_group(t3=("T3", 0, -3, 0, 0))}
     assert _team_out_status("T3", gs, []) == "In"
 
 
-def test_team_out_third_in_completed_group_cannot_qualify_is_out():
-    # T3 is 3rd in Group A with 0 pts. All 11 other groups are complete with
-    # 3rd-placers that beat T3 on (PTS, GD, GS). worst_case_rank = 12 → Out.
-    a_third = ("T3", 0, -3, 0, 0)  # 0 PTS, -3 GD, 0 GS
-    groups = {"A": _complete_group(t3=a_third)}
-    for letter in "BCDEFGHIJKL":
-        # Each group's 3rd-placer at 3 PTS, GD 0, GS 2 — strictly above T3.
-        groups[letter] = pd.DataFrame([
-            {"Team": f"{letter}1", "PL": 3, "W": 3, "D": 0, "L": 0, "GS": 9, "GA": 0, "GD": 9, "PTS": 9},
-            {"Team": f"{letter}2", "PL": 3, "W": 2, "D": 0, "L": 1, "GS": 6, "GA": 2, "GD": 4, "PTS": 6},
-            {"Team": f"{letter}3", "PL": 3, "W": 1, "D": 0, "L": 2, "GS": 2, "GA": 2, "GD": 0, "PTS": 3},
-            {"Team": f"{letter}4", "PL": 3, "W": 0, "D": 0, "L": 3, "GS": 0, "GA": 9, "GD": -9, "PTS": 0},
-        ])
-    assert _team_out_status("T3", groups, []) == "Out"
-
-
-def test_team_out_third_just_misses_top_eight_when_all_complete_is_out():
-    # T3 has 1 PTS; 8 other 3rd-placers strictly above (3 PTS), 3 below (0 PTS).
-    # All groups complete → no free variables. above_or_tied = 8 → rank = 9 → Out.
-    groups = {"A": _complete_group(t3=("T3", 1, -2, 0, 0))}
-    for letter in "BCDEFGHI":  # 8 groups with stronger 3rd-placers
-        groups[letter] = pd.DataFrame([
-            {"Team": f"{letter}1", "PL": 3, "W": 3, "D": 0, "L": 0, "GS": 9, "GA": 0, "GD": 9, "PTS": 9},
-            {"Team": f"{letter}2", "PL": 3, "W": 2, "D": 0, "L": 1, "GS": 6, "GA": 2, "GD": 4, "PTS": 6},
-            {"Team": f"{letter}3", "PL": 3, "W": 1, "D": 0, "L": 2, "GS": 2, "GA": 2, "GD": 0, "PTS": 3},
-            {"Team": f"{letter}4", "PL": 3, "W": 0, "D": 0, "L": 3, "GS": 0, "GA": 9, "GD": -9, "PTS": 0},
-        ])
-    for letter in "JKL":  # 3 groups with weaker 3rd-placers
-        groups[letter] = pd.DataFrame([
-            {"Team": f"{letter}1", "PL": 3, "W": 3, "D": 0, "L": 0, "GS": 9, "GA": 0, "GD": 9, "PTS": 9},
-            {"Team": f"{letter}2", "PL": 3, "W": 2, "D": 0, "L": 1, "GS": 6, "GA": 2, "GD": 4, "PTS": 6},
-            {"Team": f"{letter}3", "PL": 3, "W": 0, "D": 0, "L": 3, "GS": 0, "GA": 4, "GD": -4, "PTS": 0},
-            {"Team": f"{letter}4", "PL": 3, "W": 0, "D": 0, "L": 3, "GS": 0, "GA": 9, "GD": -9, "PTS": 0},
-        ])
-    assert _team_out_status("T3", groups, []) == "Out"
-
-
-def test_team_out_knockout_loser_is_out():
+def test_team_out_knockout_loser_stays_in():
+    # Per the simple rule, knockout results don't change In/Out — only group
+    # standing does. A team that won its group then lost a knockout match is
+    # still "In" on the leaderboard.
     gs = {"A": _complete_group()}
     matches = [
-        _match("T1", "X", 0, 1, stage="Round of 32"),  # T1 lost R32
-    ]
-    assert _team_out_status("T1", gs, matches) == "Out"
-
-
-def test_team_out_knockout_winner_stays_in():
-    gs = {"A": _complete_group()}
-    matches = [
-        _match("T1", "X", 2, 0, stage="Round of 32"),  # T1 won R32
+        _match("T1", "X", 0, 1, stage="Round of 32"),
     ]
     assert _team_out_status("T1", gs, matches) == "In"
-
-
-def test_team_out_penalty_shootout_loser_is_out():
-    gs = {"A": _complete_group()}
-    matches = [
-        _match("T1", "X", 1, 1, aet=True, pen_home=3, pen_away=4, stage="Round of 16"),
-    ]
-    assert _team_out_status("T1", gs, matches) == "Out"
 
 
 def test_compute_team_table_in_uses_elimination():

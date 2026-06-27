@@ -73,21 +73,6 @@ def _apply_match(stats: dict[str, dict], match: dict) -> None:
         stats[away]["PTS"] += 1
 
 
-def _match_loser(match: dict) -> str | None:
-    """Return the losing team for a finished decisive match, else None."""
-    if match.get("status") != "finished" or match.get("home_score") is None:
-        return None
-    hs = match["home_score"]
-    aws = match["away_score"]
-    pen_home = match.get("pen_home")
-    pen_away = match.get("pen_away")
-    if pen_home is not None and pen_away is not None:
-        return match["away_team"] if pen_home > pen_away else match["home_team"]
-    if hs != aws:
-        return match["away_team"] if hs > aws else match["home_team"]
-    return None
-
-
 def _rank_overall(teams: list[str], overall_stats: dict[str, dict]) -> list[str]:
     """FIFA Step 2: overall GD then overall GS (descending)."""
     def key(t):
@@ -172,15 +157,13 @@ def _team_out_status(
     group_standings: dict[str, pd.DataFrame],
     matches: list[dict],
 ) -> str:
-    """Mathematical elimination test. Returns 'Out' or 'In'.
+    """Returns 'Out' or 'In'.
 
-    A team is Out only if:
-      1. 4th in a fully-completed group (every team played 3); or
-      2. 3rd in a fully-completed group AND mathematically cannot finish in
-         the top 8 of all 12 third-placers (treating any not-yet-determined
-         3rd-place slot as worst-case-for-this-team, i.e. above them); or
-      3. Named loser of any finished knockout-stage match (R32 onwards,
-         which here is any non-group stage).
+    A team is Out only if it has played 3 group matches AND is either
+    bottom of its group or in the bottom 4 of the third-place table.
+    Otherwise In. The `matches` argument is accepted for signature
+    compatibility but unused — the rule is derived entirely from
+    `group_standings`.
     """
     team_group = None
     for g, gdf in group_standings.items():
@@ -191,57 +174,18 @@ def _team_out_status(
         return "In"
 
     gdf = group_standings[team_group]
-    group_complete = len(gdf) >= 4 and bool((gdf["PL"] == 3).all())
-
-    pos_idx = gdf.index[gdf["Team"] == team].tolist()
-    if not pos_idx:
+    team_row = gdf[gdf["Team"] == team].iloc[0]
+    if int(team_row["PL"]) < 3:
         return "In"
-    position = pos_idx[0] + 1  # 1-indexed
 
-    # Rule 1: 4th in completed group
-    if group_complete and position == 4:
+    # Bottom of group: last row of the H2H-ranked standings, if group has 4 teams.
+    if len(gdf) >= 4 and gdf.iloc[-1]["Team"] == team:
         return "Out"
 
-    # Rule 2: 3rd in completed group AND cannot reach top 8 of 3rd-placers
-    if group_complete and position == 3:
-        team_row = gdf.iloc[2]
-        team_key = (int(team_row["PTS"]), int(team_row["GD"]), int(team_row["GS"]))
-
-        above_or_tied = 0
-        free_variables = 0
-        for g, other_df in group_standings.items():
-            if g == team_group:
-                continue
-            other_complete = len(other_df) >= 4 and bool((other_df["PL"] == 3).all())
-            if not other_complete or len(other_df) < 3:
-                free_variables += 1
-                continue
-            other_third = other_df.iloc[2]
-            other_key = (
-                int(other_third["PTS"]),
-                int(other_third["GD"]),
-                int(other_third["GS"]),
-            )
-            # `>=` treats a (PTS, GD, GS) tie as worst-case-above, because
-            # further FIFA tiebreakers among 3rd-placers aren't computed here.
-            if other_key >= team_key:
-                above_or_tied += 1
-
-        worst_case_rank = 1 + above_or_tied + free_variables
-        if worst_case_rank >= 9:
-            return "Out"
-
-    # Rule 3: lost a knockout-stage match
-    for m in matches:
-        stage = m.get("stage", "")
-        if stage.startswith("Group "):
-            continue
-        if m.get("status") != "finished" or m.get("home_score") is None:
-            continue
-        if m["home_team"] != team and m["away_team"] != team:
-            continue
-        if _match_loser(m) == team:
-            return "Out"
+    # Bottom 4 of the third-place table.
+    third_table = compute_third_place_table(group_standings)
+    if len(third_table) >= 4 and team in set(third_table.tail(4)["Team"]):
+        return "Out"
 
     return "In"
 

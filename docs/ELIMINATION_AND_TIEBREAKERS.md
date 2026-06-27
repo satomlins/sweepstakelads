@@ -5,87 +5,53 @@ display consequence in `app.py`.
 
 ---
 
-## 1. Elimination (the strikethrough bug)
+## 1. Elimination (the strikethrough rule)
 
-### Symptom
+### Rule
 
-On the country leaderboard, every team that has played 3 matches is shown
-with a strikethrough — even teams that have just topped their group and
-are clearly through.
+A team is **Out** only when both of the following hold:
 
-### Root cause
-
-`scoring.py::compute_team_table` sets `In = "Out"` for any team that
-**does not appear in a not-yet-finished match**:
-
-```python
-in_teams: set[str] = set()
-for m in matches:
-    if m["status"] != "finished":
-        in_teams.add(m["home_team"])
-        in_teams.add(m["away_team"])
-df["In"] = df["Team"].apply(lambda t: "In" if t in in_teams else "Out")
-```
-
-The bug: knockout fixtures use placeholder names like `"Winner of Match 73"`
-until the bracket fills in. So once a real team has played its 3rd group
-match, its real name no longer appears in any unfinished fixture — the
-unfinished fixtures all reference placeholders. Result: every team gets
-flagged `Out` the instant their group matches finish.
-
-### Correct rule
-
-A team is **Out** only when its tournament is mathematically over. There
-are three ways that happens:
-
-1. **Finished 4th in its group** — the group has played all 6 matches
-   (so the 4th-placed team is locked in), and the team is in 4th.
-2. **Finished 3rd in its group AND mathematically cannot reach the top 8
-   of all 12 third-placed teams.** Both conditions matter:
-   - The team's own group must have completed (their 3rd-place stats
-     are locked in).
-   - Across all 12 groups, considering every remaining 3rd-place
-     possibility (groups whose 3rd-placer is not yet determined),
-     there is no scenario in which 8 other teams could finish below
-     this team on the 3rd-place ranking.
-3. **Lost a knockout match** (R32 onwards). The team is the named loser
-   of a finished knockout fixture.
+1. The team has played 3 group matches (`PL == 3` in `compute_group_standings`).
+2. The team is either **bottom of its group** (last row of the
+   H2H-ranked standings; group has 4 teams) **or** in the **bottom 4 of
+   the third-place table**.
 
 Anything else is **In**, including:
 
-- A team that has finished 3rd in its group but is still mathematically
-  in contention for the top-8-of-3rds slot.
-- A team that has finished 3rd and is currently outside the top 8 of
-  3rd-placers, but where some 3rd-place slots in other groups are still
-  to be determined and could plausibly come in below them.
-- A team between knockout rounds that has not yet lost.
+- A team mid-group-stage (PL &lt; 3) — even if currently last.
+- A 3rd-placed team that has so far avoided the bottom 4 of the
+  cross-group third-place ranking.
+- A team that lost a knockout match. Knockout results deliberately do
+  not change `In`/`Out`; the leaderboard only reflects group-stage
+  position.
 
-### Implementation notes
+### Why this rule
 
-- The "mathematically cannot reach top 8 of 3rds" check needs to consider
-  the worst-case-for-the-team finishing position of every still-undetermined
-  3rd-placer. For any group whose 3 matches are not all complete, treat
-  the eventual 3rd-placer as a free variable that could finish anywhere
-  from "below this team" to "above this team" on the cross-group ordering.
-  A team is only eliminated if even when **all** free variables resolve
-  "above this team", it would still be 9th or lower among 3rd-placers.
-- The simplest correct version: only mark a 3rd-placed team Out once
-  enough groups have completed that the top 8 of 3rd-placers is fully
-  determined and this team is not in it. (Cheaper to compute, slightly
-  later marker; acceptable because the UI is read-only.)
-- Recommend implementing both `_team_out_status(team, group_standings,
-  matches)` as a pure helper and replacing the current `in_teams` block.
-- The 4th-place check needs the group to be "complete" — `PL == 3` for
-  every team in the group is the simplest test.
-- Knockout losses already work implicitly today (any knockout-stage
-  loser team doesn't have a future *real-name* fixture either, but they
-  also shouldn't — they're genuinely Out). Make sure the new logic
-  preserves that.
+The previous rule ("any non-finished match remaining") wrongly flagged
+every team as Out the moment its group matches finished, because future
+knockout fixtures use placeholder names like `"Winner of Match 73"`.
+A purely mathematical version was tried (3rd-placer worst-case rank
+across all 12 groups) but produced surprising edge cases and was harder
+to reason about. The simple rule above matches how a viewer scanning the
+group tables would decide who is out.
+
+### Implementation
+
+- `_team_out_status(team, group_standings, matches)` in `scoring.py` is
+  the source of truth. The `matches` argument is accepted for signature
+  compatibility but not used — only `group_standings` matters.
+- `compute_team_table` calls `compute_group_standings` once and applies
+  `_team_out_status` to every team to populate the `In` column.
+- "Bottom of group" uses `gdf.iloc[-1]` of the FIFA-H2H-ranked group
+  standings (so the H2H tiebreaker resolves the bottom slot too).
+- "Bottom 4 of third-place table" uses
+  `compute_third_place_table(group_standings).tail(4)` and skips if the
+  table has fewer than 4 rows (early-tournament safety).
 
 ### Display
 
-No CSS or layout change needed. `_eliminated_rule()` in `app.py` already
-keys off `{In} = 'Out'`; once `In` is correct, the strikethrough is correct.
+No CSS or layout change. `_eliminated_rule()` in `app.py` keys off
+`{In} = 'Out'`; once `In` is correct, the strikethrough is correct.
 
 ---
 
@@ -168,15 +134,15 @@ order they receive.
 
 Update `tests/test_scoring.py` with:
 
-- `test_compute_team_table_in_out_*` — at least:
+- `test_team_out_*` / `test_compute_team_table_in_uses_elimination` — at least:
   - Team that has played 3 group games and topped the group → `In`.
-  - Team that has played 3 group games and is 4th in a fully-completed
-    group → `Out`.
-  - Team that is 3rd in a fully-completed group, with enough other
-    groups complete to confirm it as a non-qualifier → `Out`.
-  - Team that is 3rd in a fully-completed group, with other groups
-    still in progress such that it might still reach top 8 → `In`.
-  - Team that lost an R32 knockout match → `Out`.
+  - Team that has played 3 group games and is bottom of its group → `Out`.
+  - Team that is 3rd in a group and in the bottom 4 of the third-place
+    table (12 complete groups) → `Out`.
+  - Team that is 3rd in a group but in the top 8 of the third-place
+    table → `In`.
+  - Team mid-group-stage (`PL < 3`), currently last → `In`.
+  - Team that lost a knockout match but topped its group → `In`.
 
 - `test_compute_group_standings_head_to_head_*` — at least the five
   tiebreaker scenarios listed above.
