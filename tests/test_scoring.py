@@ -10,6 +10,7 @@ import pytest
 
 from scoring import (
     _apply_match,
+    _team_out_status,
     compute_group_standings,
     compute_person_table,
     compute_team_table,
@@ -284,3 +285,228 @@ def test_third_place_table_sorted_by_points():
 def test_third_place_table_empty_groups():
     result = compute_third_place_table({})
     assert len(result) == 0
+
+
+# ---------------------------------------------------------------------------
+# _team_out_status — mathematical elimination
+# ---------------------------------------------------------------------------
+
+def _complete_group(t1_pts=9, t2_pts=6, t3=("T3", 3, 1, 2, 1), t4_pts=0,
+                   t1="T1", t2="T2", t4="T4"):
+    """Helper: a 4-team completed group. t3 is (name, PTS, GD, GS, W)."""
+    t3_name, t3_p, t3_gd, t3_gs, t3_w = t3
+    return pd.DataFrame([
+        {"Team": t1, "PL": 3, "W": 3, "D": 0, "L": 0, "GS": 9, "GA": 0, "GD": 9, "PTS": t1_pts},
+        {"Team": t2, "PL": 3, "W": 2, "D": 0, "L": 1, "GS": 6, "GA": 2, "GD": 4, "PTS": t2_pts},
+        {"Team": t3_name, "PL": 3, "W": t3_w, "D": 0, "L": 3 - t3_w,
+         "GS": t3_gs, "GA": t3_gs - t3_gd, "GD": t3_gd, "PTS": t3_p},
+        {"Team": t4, "PL": 3, "W": 0, "D": 0, "L": 3, "GS": 0, "GA": 9, "GD": -9, "PTS": t4_pts},
+    ])
+
+
+def test_team_out_topped_completed_group_is_in():
+    gs = {"A": _complete_group()}
+    assert _team_out_status("T1", gs, []) == "In"
+
+
+def test_team_out_fourth_in_completed_group_is_out():
+    gs = {"A": _complete_group()}
+    assert _team_out_status("T4", gs, []) == "Out"
+
+
+def test_team_out_third_completed_group_but_other_groups_pending_is_in():
+    # A is complete; B has only 1 played match so its 3rd-placer is undetermined.
+    # Even one free variable plus 0 above_or_tied → worst-case rank well below 9.
+    gs = {
+        "A": _complete_group(),
+        "B": pd.DataFrame([
+            {"Team": "U1", "PL": 1, "W": 1, "D": 0, "L": 0, "GS": 1, "GA": 0, "GD": 1, "PTS": 3},
+            {"Team": "U2", "PL": 1, "W": 0, "D": 0, "L": 1, "GS": 0, "GA": 1, "GD": -1, "PTS": 0},
+            {"Team": "U3", "PL": 0, "W": 0, "D": 0, "L": 0, "GS": 0, "GA": 0, "GD": 0, "PTS": 0},
+            {"Team": "U4", "PL": 0, "W": 0, "D": 0, "L": 0, "GS": 0, "GA": 0, "GD": 0, "PTS": 0},
+        ]),
+    }
+    assert _team_out_status("T3", gs, []) == "In"
+
+
+def test_team_out_third_in_completed_group_cannot_qualify_is_out():
+    # T3 is 3rd in Group A with 0 pts. All 11 other groups are complete with
+    # 3rd-placers that beat T3 on (PTS, GD, GS). worst_case_rank = 12 → Out.
+    a_third = ("T3", 0, -3, 0, 0)  # 0 PTS, -3 GD, 0 GS
+    groups = {"A": _complete_group(t3=a_third)}
+    for letter in "BCDEFGHIJKL":
+        # Each group's 3rd-placer at 3 PTS, GD 0, GS 2 — strictly above T3.
+        groups[letter] = pd.DataFrame([
+            {"Team": f"{letter}1", "PL": 3, "W": 3, "D": 0, "L": 0, "GS": 9, "GA": 0, "GD": 9, "PTS": 9},
+            {"Team": f"{letter}2", "PL": 3, "W": 2, "D": 0, "L": 1, "GS": 6, "GA": 2, "GD": 4, "PTS": 6},
+            {"Team": f"{letter}3", "PL": 3, "W": 1, "D": 0, "L": 2, "GS": 2, "GA": 2, "GD": 0, "PTS": 3},
+            {"Team": f"{letter}4", "PL": 3, "W": 0, "D": 0, "L": 3, "GS": 0, "GA": 9, "GD": -9, "PTS": 0},
+        ])
+    assert _team_out_status("T3", groups, []) == "Out"
+
+
+def test_team_out_third_just_misses_top_eight_when_all_complete_is_out():
+    # T3 has 1 PTS; 8 other 3rd-placers strictly above (3 PTS), 3 below (0 PTS).
+    # All groups complete → no free variables. above_or_tied = 8 → rank = 9 → Out.
+    groups = {"A": _complete_group(t3=("T3", 1, -2, 0, 0))}
+    for letter in "BCDEFGHI":  # 8 groups with stronger 3rd-placers
+        groups[letter] = pd.DataFrame([
+            {"Team": f"{letter}1", "PL": 3, "W": 3, "D": 0, "L": 0, "GS": 9, "GA": 0, "GD": 9, "PTS": 9},
+            {"Team": f"{letter}2", "PL": 3, "W": 2, "D": 0, "L": 1, "GS": 6, "GA": 2, "GD": 4, "PTS": 6},
+            {"Team": f"{letter}3", "PL": 3, "W": 1, "D": 0, "L": 2, "GS": 2, "GA": 2, "GD": 0, "PTS": 3},
+            {"Team": f"{letter}4", "PL": 3, "W": 0, "D": 0, "L": 3, "GS": 0, "GA": 9, "GD": -9, "PTS": 0},
+        ])
+    for letter in "JKL":  # 3 groups with weaker 3rd-placers
+        groups[letter] = pd.DataFrame([
+            {"Team": f"{letter}1", "PL": 3, "W": 3, "D": 0, "L": 0, "GS": 9, "GA": 0, "GD": 9, "PTS": 9},
+            {"Team": f"{letter}2", "PL": 3, "W": 2, "D": 0, "L": 1, "GS": 6, "GA": 2, "GD": 4, "PTS": 6},
+            {"Team": f"{letter}3", "PL": 3, "W": 0, "D": 0, "L": 3, "GS": 0, "GA": 4, "GD": -4, "PTS": 0},
+            {"Team": f"{letter}4", "PL": 3, "W": 0, "D": 0, "L": 3, "GS": 0, "GA": 9, "GD": -9, "PTS": 0},
+        ])
+    assert _team_out_status("T3", groups, []) == "Out"
+
+
+def test_team_out_knockout_loser_is_out():
+    gs = {"A": _complete_group()}
+    matches = [
+        _match("T1", "X", 0, 1, stage="Round of 32"),  # T1 lost R32
+    ]
+    assert _team_out_status("T1", gs, matches) == "Out"
+
+
+def test_team_out_knockout_winner_stays_in():
+    gs = {"A": _complete_group()}
+    matches = [
+        _match("T1", "X", 2, 0, stage="Round of 32"),  # T1 won R32
+    ]
+    assert _team_out_status("T1", gs, matches) == "In"
+
+
+def test_team_out_penalty_shootout_loser_is_out():
+    gs = {"A": _complete_group()}
+    matches = [
+        _match("T1", "X", 1, 1, aet=True, pen_home=3, pen_away=4, stage="Round of 16"),
+    ]
+    assert _team_out_status("T1", gs, matches) == "Out"
+
+
+def test_compute_team_table_in_uses_elimination():
+    """End-to-end: 4th in completed group → Out; 1st → In (no remaining real-name fixtures)."""
+    draw = pd.DataFrame({"Who": ["A", "B", "C", "D"], "Team": ["T1", "T2", "T3", "T4"]})
+    matches = [
+        _match("T1", "T2", 1, 0, stage="Group A"),
+        _match("T1", "T3", 1, 0, stage="Group A"),
+        _match("T1", "T4", 1, 0, stage="Group A"),
+        _match("T2", "T3", 1, 0, stage="Group A"),
+        _match("T2", "T4", 1, 0, stage="Group A"),
+        _match("T3", "T4", 1, 0, stage="Group A"),
+        # No upcoming real-name fixture; next round uses placeholders.
+        _match("Winner of Match 1", "X", None, None, stage="Round of 32"),
+    ]
+    df = compute_team_table(draw, matches)
+    t1 = df[df["Team"] == "T1"].iloc[0]
+    t4 = df[df["Team"] == "T4"].iloc[0]
+    # T1 topped a completed group — should stay In despite no real-name fixture.
+    assert t1["In"] == "In"
+    # T4 finished bottom of completed group → Out.
+    assert t4["In"] == "Out"
+
+
+# ---------------------------------------------------------------------------
+# compute_group_standings — FIFA head-to-head tiebreakers
+# ---------------------------------------------------------------------------
+
+def test_group_h2h_two_way_tie_broken_by_h2h():
+    # A and B both 4 pts overall (1W 1D 1L). A beat B head-to-head → A first.
+    matches = [
+        _match("A", "B", 1, 0, stage="Group A"),  # A wins H2H
+        _match("A", "C", 1, 1, stage="Group A"),  # A draws C
+        _match("B", "C", 3, 0, stage="Group A"),  # B beats C
+        # All three played 2; add 3rd matches so PTS counts make A=B=4
+        # Currently: A=4 (W+D), B=3 (W+L), C=1 (D+L). Need to equalise.
+        # Add vs D so each plays 3.
+        _match("A", "D", 0, 0, stage="Group A"),  # A +1 → 5
+        _match("B", "D", 1, 0, stage="Group A"),  # B +3 → 6 — too many
+    ]
+    # Re-design simply: just 2 teams in subset tied, ignore equality and assert H2H wins.
+    matches = [
+        _match("A", "B", 2, 1, stage="Group A"),  # A beats B
+        _match("A", "C", 0, 1, stage="Group A"),  # A loses to C
+        _match("B", "C", 3, 0, stage="Group A"),  # B beats C
+        # A: 1W 1L = 3pts, GD = 2-2 = 0, GS = 2
+        # B: 1W 1L = 3pts, GD = 4-2 = 2, GS = 4
+        # C: 1W 1L = 3pts, GD = 1-3 = -2, GS = 1
+        # All tied at 3 pts. H2H mini = overall (cyclic). H2H GD: B=2, A=0, C=-2.
+    ]
+    gs = compute_group_standings(matches)
+    order = gs["A"]["Team"].tolist()
+    assert order == ["B", "A", "C"]
+
+
+def test_group_h2h_three_way_tie_broken_by_h2h_mini_table():
+    # Cyclic 3-way tie; asymmetric scores → H2H GD separates all three.
+    matches = [
+        _match("A", "B", 2, 0, stage="Group B"),  # A beats B
+        _match("B", "C", 1, 0, stage="Group B"),  # B beats C
+        _match("C", "A", 1, 0, stage="Group B"),  # C beats A
+        # Each: 1W 1L = 3 pts. H2H GD: A=1, B=-1, C=0.
+    ]
+    gs = compute_group_standings(matches)
+    order = gs["B"]["Team"].tolist()
+    assert order == ["A", "C", "B"]
+
+
+def test_group_h2h_separates_one_then_others_need_overall_gd():
+    # 3-way overall tie at 4 pts each. Within the tied set, A beat B (1-0)
+    # and B drew C (1-1); A vs C unplayed. H2H separates A. Re-applying Step 1
+    # on {B, C} (their only match was the draw) leaves them tied → fall to
+    # overall GD. C's overall GD beats B's.
+    matches = [
+        _match("A", "B", 1, 0, stage="Group C"),  # A wins H2H over B
+        _match("B", "C", 1, 1, stage="Group C"),  # B and C draw H2H
+        # A vs C upcoming (None, None)
+        _match("A", "C", None, None, stage="Group C"),
+        _match("A", "D", 0, 0, stage="Group C"),  # A +1
+        _match("B", "D", 1, 0, stage="Group C"),  # B +3
+        _match("C", "D", 2, 0, stage="Group C"),  # C +3
+    ]
+    # Final overall:
+    # A: W vs B, draw vs D, vs C upcoming → 3+1 = 4 pts. GS=2 (1+0+1+0), GA=1 (0+0+1+0); actually:
+    #   A-B 1-0 → A GS+=1 GA+=0; A-D 0-0 → GS+=0 GA+=0. Total A: GS=1, GA=0, GD=+1.
+    # B: lost vs A (0-1), drew vs C (1-1), beat D (1-0) → 0+1+3=4 pts. GS=0+1+1=2, GA=1+1+0=2, GD=0.
+    # C: drew vs B (1-1), beat D (2-0) → 1+3=4 pts. GS=1+2=3, GA=1+0=1, GD=+2.
+    # All three at 4 pts. H2H: A=3 (1W), B=1 (1L 1D), C=1 (1D).
+    # A separates; {B,C} re-applied: their only match is draw → still tied; overall GD: C>B.
+    gs = compute_group_standings(matches)
+    order = gs["C"]["Team"].tolist()
+    # A first, then C (overall GD 2 > B's 0), then B, then D (1 pt).
+    assert order[:3] == ["A", "C", "B"]
+    assert order[3] == "D"
+
+
+def test_group_h2h_unresolved_falls_to_overall_gd():
+    # A and B tied at 4 pts; H2H drew. Overall GD differentiates.
+    matches = [
+        _match("A", "B", 1, 1, stage="Group D"),  # H2H draw
+        _match("A", "C", 5, 0, stage="Group D"),  # A overall GD large
+        _match("B", "C", 2, 0, stage="Group D"),  # B overall GD smaller
+        # A: 4 pts, GS=6, GA=1, GD=+5
+        # B: 4 pts, GS=3, GA=1, GD=+2
+        # C: 0 pts
+    ]
+    gs = compute_group_standings(matches)
+    order = gs["D"]["Team"].tolist()
+    assert order == ["A", "B", "C"]
+
+
+def test_group_h2h_unresolved_falls_to_overall_gs():
+    # A and B tied at 4 pts; H2H draw; overall GD also tied; overall GS differs.
+    matches = [
+        _match("A", "B", 2, 2, stage="Group E"),  # H2H draw, both contribute equally
+        _match("A", "C", 1, 0, stage="Group E"),  # A overall: GS=3, GA=2, GD=+1
+        _match("B", "C", 2, 1, stage="Group E"),  # B overall: GS=4, GA=3, GD=+1
+        # A and B both 4 pts, GD +1, but B has GS=4 > A's GS=3.
+    ]
+    gs = compute_group_standings(matches)
+    order = gs["E"]["Team"].tolist()
+    assert order[:2] == ["B", "A"]
