@@ -259,6 +259,25 @@ def _parse_score(text: str) -> tuple[int | None, int | None]:
     return None, None
 
 
+def _parse_match_number(score_field: str) -> int | None:
+    """Extract the FIFA match number from a `{{score link|anchor|Match N}}` field.
+
+    Wikipedia editors set the display text of the score-link template to "Match N"
+    for upcoming matches and to the actual score (e.g. "0–1") once played; the
+    number is therefore only recoverable from upcoming entries.
+    """
+    score_field = score_field.strip()
+    if not score_field.lower().startswith("{{score link"):
+        return None
+    inside = score_field[2:-2]
+    parts = _split_on_pipe(inside)
+    # parts[0]="score link", parts[1]=anchor, parts[2]=display, ...
+    if len(parts) < 3:
+        return None
+    m = re.match(r"\s*Match\s+(\d+)", parts[2], re.IGNORECASE)
+    return int(m.group(1)) if m else None
+
+
 def _parse_date(text: str) -> date | None:
     m = re.search(r"Start date\|(\d{4})\|(\d{1,2})\|(\d{1,2})", text)
     if m:
@@ -300,11 +319,16 @@ def _parse_datetime_utc(match_date: date | None, time_str: str) -> datetime | No
 
 
 def _extract_labeled_section(wikitext: str, section_name: str) -> str:
-    """Extract content between <section begin=name/> and <section end=name/> markers."""
+    """Extract content between <section begin=name/> and <section end=name/> markers.
+
+    Wikipedia editors write the name bare (`begin=R32-1`) or quoted
+    (`begin="R32-1"`); both forms are matched.
+    """
+    name = re.escape(section_name)
     pattern = re.compile(
-        rf"<section\s+begin\s*=\s*{re.escape(section_name)}\s*/>"
+        rf'<section\s+begin\s*=\s*"?{name}"?\s*/>'
         rf"(.*?)"
-        rf"<section\s+end\s*=\s*{re.escape(section_name)}\s*/>",
+        rf'<section\s+end\s*=\s*"?{name}"?\s*/>',
         re.DOTALL | re.IGNORECASE,
     )
     m = pattern.search(wikitext)
@@ -396,7 +420,9 @@ def parse_matches(wikitext: str, stage_override: str = "") -> list[dict]:
         if not home_team or not away_team:
             continue
 
-        home_score, away_score = _parse_score(params.get("score", ""))
+        score_field = params.get("score", "")
+        home_score, away_score = _parse_score(score_field)
+        wiki_match_number = _parse_match_number(score_field)
         pen_home, pen_away = _parse_score(params.get("penaltyscore", ""))
         aet = params.get("aet", "").strip().lower() in ("yes", "y")
 
@@ -422,26 +448,43 @@ def parse_matches(wikitext: str, stage_override: str = "") -> list[dict]:
                 "pen_away": pen_away,
                 "stage": stage,
                 "status": status,
+                "wiki_match_number": wiki_match_number,
             }
         )
 
     return matches
 
 
-def fetch_all_matches() -> list[dict]:
-    """Fetch and parse all matches via a single batched HTTP request."""
+def fetch_all() -> tuple[list[dict], dict[str, str]]:
+    """Fetch and parse all matches; also return the resolved pages dict.
+
+    Returns (matches, pages). The pages dict has transclusions already resolved,
+    so callers (e.g. `bracket.resolve_placeholders`) can read the knockout
+    wikitext directly without re-fetching.
+    """
     try:
         pages = fetch_all_wikitext()
     except Exception as exc:
         logger.warning("Failed to fetch Wikipedia batch: %s", exc)
-        return []
+        return [], {}
 
     missing = [t for t in BATCH_TITLES if t not in pages]
     if missing:
         logger.warning("Pages missing from Wikipedia response: %s", missing)
 
     pages = _resolve_transclusions(pages)
+    matches = _parse_pages(pages)
+    return matches, pages
 
+
+def fetch_all_matches() -> list[dict]:
+    """Fetch and parse all matches via a single batched HTTP request."""
+    matches, _ = fetch_all()
+    return matches
+
+
+def _parse_pages(pages: dict[str, str]) -> list[dict]:
+    """Parse all football boxes from the pages dict into a deduped match list."""
     matches: list[dict] = []
     for title, wikitext in pages.items():
         if title.startswith("2026 FIFA World Cup Group "):
@@ -458,4 +501,14 @@ def fetch_all_matches() -> list[dict]:
             logger.info("%s: %d matches", title, len(ko_matches))
             matches.extend(ko_matches)
 
-    return matches
+    # The knockout page transcludes the final from FINAL_PAGE, and we also parse
+    # FINAL_PAGE directly as a fallback. Collapse the resulting duplicate.
+    seen: set[tuple] = set()
+    deduped: list[dict] = []
+    for m in matches:
+        key = (m["date"], m["home_team"], m["away_team"], m["stage"])
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(m)
+    return deduped

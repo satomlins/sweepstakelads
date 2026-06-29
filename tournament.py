@@ -14,8 +14,9 @@ import threading
 import pandas as pd
 from datetime import datetime, timezone
 
-from scraper import fetch_all_matches
+from scraper import KNOCKOUT_PAGE, fetch_all
 from scoring import compute_team_table, compute_group_standings, compute_person_table
+from bracket import resolve_placeholders
 
 logger = logging.getLogger(__name__)
 
@@ -141,11 +142,15 @@ def refresh() -> dict:
     """Fetch fresh data, compute all tables, write cache. Returns data dict."""
     logger.info("Fetching match data from Wikipedia...")
     draw = load_draw()
-    matches = fetch_all_matches()
+    matches, pages = fetch_all()
+
+    group_standings = compute_group_standings(matches)
+    matches = resolve_placeholders(
+        matches, group_standings, pages.get(KNOCKOUT_PAGE, "")
+    )
 
     team_table = compute_team_table(draw, matches)
     person_table = compute_person_table(team_table)
-    group_standings = compute_group_standings(matches)
     fixtures_df = _matches_to_fixtures_df(matches)
 
     team_table.sort_values(["PTS", "GD", "GS"], ascending=False, inplace=True)

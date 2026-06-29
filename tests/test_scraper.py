@@ -253,6 +253,18 @@ def test_extract_labeled_section_missing():
     assert _extract_labeled_section("no sections here", "F4") == ""
 
 
+def test_extract_labeled_section_quoted_name():
+    wikitext = (
+        'pre\n<section begin="R32-1" />{{#invoke:football box|main\n'
+        "|team1={{#invoke:flag|fb-rt|RSA}}\n"
+        "|team2={{#invoke:flag|fb|CAN}}\n"
+        '}}<section end="R32-1" />\npost'
+    )
+    result = _extract_labeled_section(wikitext, "R32-1")
+    assert "RSA" in result and "CAN" in result
+    assert "pre" not in result and "post" not in result
+
+
 @patch("scraper.requests.get")
 def test_resolve_transclusions_restores_match(mock_get):
     target_wikitext = (
