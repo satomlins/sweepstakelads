@@ -29,7 +29,7 @@
   --Dash-Stroke-Strong:           var(--border);
   --Dash-Text-Strong:             var(--text);
   --Dash-Text-Weak:               var(--text-muted);
-  --Dash-Text-Disabled:           var(--text-faint);
+  --Dash-Text-Disabled:           var(--text-muted);
   --Dash-Fill-Inverse-Strong:     var(--bg);
 }
 
@@ -44,15 +44,15 @@
 }
 
 .owner-filter .dash-dropdown-grid-container.dash-dropdown-trigger:hover {
-  border-color: var(--text-faint) !important;
+  border-color: var(--text-muted) !important;
 }
 
 /* Placeholder, value, chips */
-.owner-filter .dash-dropdown-placeholder { color: var(--text-faint) !important; font-size: var(--text-base) !important; }
+.owner-filter .dash-dropdown-placeholder { color: var(--text-muted) !important; font-size: var(--text-base) !important; }
 .owner-filter .dash-dropdown-value       { color: var(--text) !important; font-size: var(--text-base) !important; }
 .owner-filter .dash-dropdown-value-item  { background-color: var(--surface-2) !important; border: 1px solid var(--border) !important; color: var(--text) !important; border-radius: var(--radius) !important; font-size: var(--text-sm) !important; }
 .owner-filter .dash-dropdown-clear,
-.owner-filter .dash-dropdown-trigger-icon { color: var(--text-faint) !important; }
+.owner-filter .dash-dropdown-trigger-icon { color: var(--text-muted) !important; }
 
 /* Dropdown panel: sibling of #owner-filter inside dash-dropdown-wrapper (Radix portal) */
 .dash-dropdown-wrapper:has(#owner-filter) .dash-dropdown-content {
@@ -197,7 +197,7 @@
 
 .card-meta {
   font-size: 13px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   margin-bottom: 4px;
   text-align: center;
 }
@@ -248,7 +248,7 @@
 
 .card-owner-sep {
   padding: 0 8px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 

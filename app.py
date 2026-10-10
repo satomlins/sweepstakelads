@@ -342,8 +342,8 @@ def _apply_flags(df: pd.DataFrame, cols: list[str], show_names: bool) -> pd.Data
 
 def _owner_span(name: str) -> html.Span:
     if name:
-        return html.Span(name, style={"color": COLOURS.get(name, "var(--text-faint)")})
-    return html.Span("—", style={"color": "var(--text-faint)"})
+        return html.Span(name, style={"color": COLOURS.get(name, "var(--text-muted)")})
+    return html.Span("—", style={"color": "var(--text-muted)"})
 
 
 def _fixture_cards(df: pd.DataFrame, is_result: bool = True, show_names: bool = True) -> html.Div:
@@ -460,7 +460,7 @@ _PERSON_FMT      = _NUMERIC_ALIGN + _person_stripe_rules("Who") + _person_row_co
 _TEAM_ROW_COLOUR = _team_row_colour_rules()
 _WHO_COL_COLOUR  = _owner_col_colour_rules("Who")
 _TP_DIM_RULES = [
-    {"if": {"row_index": i}, "color": "var(--text-faint)", "opacity": "0.6"}
+    {"if": {"row_index": i}, "color": "var(--text-muted)", "opacity": "0.6"}
     for i in range(8, 12)
 ]
 
@@ -677,18 +677,18 @@ app.layout = html.Div(
                         html.Div(
                             [
                                 html.A(
+                                    DashIconify(icon="bi:envelope", width=14),
+                                    href="mailto:scott@stomlins.com",
+                                    className="footer-icon",
+                                    **{"aria-label": "Email"},
+                                ),
+                                html.A(
                                     DashIconify(icon="bi:linkedin", width=14),
                                     href="https://www.linkedin.com/in/scotttomlins/",
                                     target="_blank",
                                     rel="noopener noreferrer me",
                                     className="footer-icon",
                                     **{"aria-label": "LinkedIn"},
-                                ),
-                                html.A(
-                                    DashIconify(icon="bi:envelope", width=14),
-                                    href="mailto:scott@stomlins.com",
-                                    className="footer-icon",
-                                    **{"aria-label": "Email"},
                                 ),
                                 html.A(
                                     DashIconify(icon="bi:github", width=14),
