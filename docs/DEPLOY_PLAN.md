@@ -11,6 +11,8 @@ Target: `sweepstakelads.stomlins.com`, served by gunicorn on the Oracle box behi
 
 ## Update workflow (steady state)
 
+> Since 2026-10-10 the update workflow is: merge to `main`. See `CLAUDE.md`. What follows is the original manual process, kept as history.
+
 Always dev locally, push, then pull on Oracle:
 
 ```bash
@@ -130,7 +132,7 @@ Open the URL in a browser and confirm the dashboard renders with the pre-draw "T
 
 ## Auto-deploy setup (Phase 4)
 
-> **Superseded 2026-10-10.** The project now deploys by the host's gitops rule: merge to `main`, and the host runs `host/install` within 3 minutes. See "How a change reaches production" in `CLAUDE.md`. The GitHub Actions path described below is still installed and still runs on every push to `main` until it is retired; this section is kept as the record of what has to be removed (the workflow, the forced-command key, the sudoers rule, the GitHub secrets).
+> **Retired 2026-10-10.** The project deploys by the host's gitops rule: merge to `main`, and the host runs `host/install` within 3 minutes. See "How a change reaches production" in `CLAUDE.md`. Everything this section set up has been removed (the workflow, `scripts/deploy.sh`, the forced-command key, the sudoers rule, the GitHub secrets). It is kept as history only; do not follow it.
 
 Push to `main` triggers `.github/workflows/deploy.yml`: tests run, then on success SSH into Oracle and run `scripts/deploy.sh` via a forced command. The deploy script pulls the latest `main`, runs `uv sync --frozen`, restarts the service, and smoke-tests it locally.
 
@@ -184,6 +186,8 @@ In the repository settings → Secrets → Actions:
 **Security note:** SSH (port 22) must be open to the public internet on Oracle's VCN Security List. This is acceptable because: the forced command means even a leaked key can only trigger `deploy.sh`; ed25519 key-only auth (no password); and the deploy script is idempotent. Risk is bot scan noise in journalctl, not real compromise.
 
 ## Rollback
+
+> Since 2026-10-10: revert the commit on `main` and the host deploys the revert. The manual steps below predate the gitops rule; a hand-made checkout is put back to `main` by the next poll unless the project is on hold (`gitops-pull hold sweepstakelads <reason>`).
 
 If a deploy breaks production:
 

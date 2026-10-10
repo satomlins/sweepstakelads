@@ -44,11 +44,12 @@ uv run python scripts/refresh_fixtures.py
 
 ## Deployment
 
-Runs on Oracle Cloud (always-free tier) behind a Cloudflare tunnel. Pushes to
-`main` trigger a GitHub Actions workflow that runs tests and, on success, SSHs
-into the server and runs the deploy script.
+Runs on Oracle Cloud (always-free tier) behind a Cloudflare tunnel. Merging to
+`main` is the deploy: the server polls GitHub, checks out the new commit and runs
+`host/install`, which runs the tests and restarts the app only if they pass.
 
-See `docs/DEPLOY_PLAN.md` for the full setup.
+See `CLAUDE.md` for how a change reaches production, and `docs/DEPLOY_PLAN.md`
+for the original setup.
 
 ## Codebase
 
