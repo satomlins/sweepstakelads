@@ -196,9 +196,9 @@ sudo /usr/local/bin/gitops-pull run sweepstakelads    # deploy now, or retry a f
 
 Rollback: revert the commit on `main` (the poll deploys the revert). To pin the host to something else meanwhile, `gitops-pull hold sweepstakelads <reason>`.
 
-### The old GitHub Actions path (still active, to be retired)
+### The old GitHub Actions path (retired 2026-10-10)
 
-Until it is retired, a push to `main` also runs `.github/workflows/deploy.yml`: tests, then SSH through `deploy.stomlins.com` (Cloudflare Access service token) with a forced-command key that runs `scripts/deploy.sh` (`git reset --hard origin/main`, `uv sync --frozen`, restart, local smoke test). Both paths end at the same commit, so the only cost of the overlap is a second restart. Do not remove `scripts/deploy.sh` while the forced-command key is still in `authorized_keys`: the key runs that path. Retirement (the workflow, the key, the sudoers rule, the `deploy.stomlins.com` ingress and its Access token) is tracked in `GITOPS.md` in `stomlins-oracle`. `.github/workflows/test.yml` stays either way.
+Until 2026-10-10 a push to `main` ran `.github/workflows/deploy.yml`, which SSHed through `deploy.stomlins.com` with a forced-command key and ran `scripts/deploy.sh`. All of it is gone: the workflow, the script, the key in `authorized_keys`, the sudoers rule, the Actions secrets and the `deploy.stomlins.com` ingress. There is no CI deploy and nothing to SSH into. `.github/workflows/test.yml` still runs the tests on every push and PR; the tests that gate a deploy are the ones `host/install` runs on the host.
 
 ### Hard constraints (Oracle)
 
