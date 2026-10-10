@@ -1,0 +1,18 @@
+[Unit]
+Description=Sweepstakelads Dash app
+After=network.target
+
+[Service]
+User=opc
+WorkingDirectory=/home/opc/sweepstakelads
+EnvironmentFile=/etc/sysconfig/sweepstakelads
+ExecStart=/usr/local/bin/uv run gunicorn app:server --bind 127.0.0.1:8050 --workers 1
+Restart=on-failure
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/opc/sweepstakelads /home/opc/.cache/uv
+PrivateTmp=true
+[Install]
+WantedBy=multi-user.target
