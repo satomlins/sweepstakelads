@@ -177,25 +177,6 @@ CELL = {
 
 NUMERIC_COLS = ["PL", "W", "D", "L", "GS", "GA", "GD", "PTS", "Match"]
 
-SECTION_LABEL = {
-    "fontSize": "12px",
-    "fontWeight": "600",
-    "letterSpacing": "0.08em",
-    "textTransform": "uppercase",
-    "color": "var(--text-faint)",
-    "textAlign": "left",
-    "margin": "0 0 12px",
-}
-
-GROUP_LABEL = {
-    "fontSize": "11px",
-    "fontWeight": "600",
-    "letterSpacing": "0.08em",
-    "textTransform": "uppercase",
-    "color": "var(--text-faint)",
-    "margin": "0 0 8px",
-}
-
 _PERSON_COLS  = ["Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PTS"]
 _TEAM_COLS    = ["Team", "Who", "PL", "W", "D", "L", "GS", "GA", "GD", "PTS"]
 _RESULT_COLS        = ["Date", "Time", "HomeOwner", "Home", "Score", "Away", "AwayOwner", "Stage"]
@@ -512,58 +493,25 @@ app.layout = html.Div(
                             [
                                 html.Span(
                                     "SWEEPSTAKELADS",
-                                    style={
-                                        "fontSize": "22px",
-                                        "fontWeight": "600",
-                                        "letterSpacing": "-0.01em",
-                                        "color": "var(--text)",
-                                    },
+                                    className="wordmark",
                                 ),
                                 html.Span(
                                     " · ",
                                     className="wordmark-sep",
-                                    style={
-                                        "fontSize": "12px",
-                                        "fontWeight": "600",
-                                        "color": "var(--text-faint)",
-                                        "marginLeft": "8px",
-                                    },
                                 ),
                                 html.Span(
                                     "2026 WORLD CUP",
                                     className="wordmark-tagline",
-                                    style={
-                                        "fontSize": "12px",
-                                        "fontWeight": "600",
-                                        "letterSpacing": "0.08em",
-                                        "textTransform": "uppercase",
-                                        "color": "var(--text-faint)",
-                                    },
                                 ),
                             ],
                             className="header-wordmark",
                         ),
                         html.Div(
                             [
-                                html.Span(
-                                    id="tz-label",
-                                    style={
-                                        "fontSize": "11px",
-                                        "color": "var(--text-faint)",
-                                        "fontFamily": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
-                                    },
-                                ),
-                                html.Div(
-                                    id="last-updated",
-                                    style={
-                                        "fontSize": "11px",
-                                        "color": "var(--text-faint)",
-                                        "fontFamily": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
-                                    },
-                                ),
+                                html.Span(id="tz-label"),
+                                html.Div(id="last-updated"),
                             ],
                             className="header-meta",
-                            style={"display": "flex", "flexDirection": "column", "alignItems": "flex-end", "gap": "2px"},
                         ),
                     ],
                     className="site-header",
@@ -586,7 +534,7 @@ app.layout = html.Div(
                         # Person leaderboard — full width
                         html.Div(
                             [
-                                html.H3("Leaderboard", style=SECTION_LABEL),
+                                html.H3("Leaderboard", className="label"),
                                 _make_table("person-table", _PERSON_COLS),
                             ],
                         ),
@@ -595,14 +543,14 @@ app.layout = html.Div(
                             [
                                 html.Div(
                                     [
-                                        html.H3("Recent results", style=SECTION_LABEL),
+                                        html.H3("Recent results", className="label"),
                                         html.Div(id="recent-cards"),
                                     ],
                                     className="six columns",
                                 ),
                                 html.Div(
                                     [
-                                        html.H3("Upcoming fixtures", style=SECTION_LABEL),
+                                        html.H3("Upcoming fixtures", className="label"),
                                         html.Div(id="upcoming-cards"),
                                     ],
                                     className="six columns",
@@ -619,13 +567,13 @@ app.layout = html.Div(
                     [
                         html.Div(
                             [
-                                html.H3("Leaderboard", style=SECTION_LABEL),
+                                html.H3("Leaderboard", className="label"),
                                 _make_table("person-table-lb", _PERSON_COLS),
                             ],
                         ),
                         html.Div(
                             [
-                                html.H3("Teams", style=SECTION_LABEL),
+                                html.H3("Teams", className="label"),
                                 _make_table("team-table", _TEAM_COLS, sort=True),
                             ],
                             className="section-gap",
@@ -640,21 +588,16 @@ app.layout = html.Div(
                     [
                         html.Div(
                             [
-                                html.H3("Groups", style=SECTION_LABEL),
+                                html.H3("Groups", className="label"),
                                 html.Div(id="group-tables", className="groups-grid"),
                             ],
                         ),
                         html.Div(
                             [
-                                html.H3("Third-place standings", style=SECTION_LABEL),
+                                html.H3("Third-place standings", className="label"),
                                 html.P(
                                     "Top 8 of 12 qualify for the round of 32",
-                                    style={
-                                        "fontSize": "11px",
-                                        "color": "var(--text-faint)",
-                                        "margin": "0 0 10px",
-                                        "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                                    },
+                                    className="note",
                                 ),
                                 _make_table("third-place-table", _THIRD_COLS),
                             ],
@@ -673,15 +616,8 @@ app.layout = html.Div(
                                 html.Label(
                                     "FILTER",
                                     htmlFor="owner-filter",
-                                    style={
-                                        "fontSize": "11px",
-                                        "fontWeight": "600",
-                                        "letterSpacing": "0.08em",
-                                        "textTransform": "uppercase",
-                                        "color": "var(--text-faint)",
-                                        "margin": "0 0 6px",
-                                        "display": "block",
-                                    },
+                                    className="label label--sm",
+                                    style={"display": "block"},
                                 ),
                                 dcc.Dropdown(
                                     id="owner-filter",
@@ -698,13 +634,13 @@ app.layout = html.Div(
                         ),
                         html.Div(
                             [
-                                html.H3("Results", style=SECTION_LABEL),
+                                html.H3("Results", className="label"),
                                 html.Div(id="all-results-cards"),
                             ],
                         ),
                         html.Div(
                             [
-                                html.H3("Fixtures", style=SECTION_LABEL),
+                                html.H3("Fixtures", className="label"),
                                 html.Div(id="all-upcoming-cards"),
                             ],
                             className="section-gap",
@@ -714,63 +650,56 @@ app.layout = html.Div(
                     style={"display": "none"},
                 ),
 
-                # Footer
+                # Footer: the standard one from stomlins-design (GUIDE.md)
                 html.Footer(
                     [
                         html.Div(
                             [
                                 html.Span(
-                                    [
-                                        html.Span(
-                                            f"© {pd.Timestamp.now().year} sweepstakelads",
-                                            className="footer-copy-main",
-                                        ),
-                                        html.Span(" · ", className="footer-copy-sep"),
-                                        html.Span(
-                                            "website by Scott Tomlins",
-                                            className="footer-copy-byline",
-                                        ),
-                                    ],
+                                    f"© {pd.Timestamp.now().year} sweepstakelads · website by Scott Tomlins",
                                     className="footer-copyright",
-                                    style={"color": "var(--text-faint)", "fontSize": "11px"},
                                 ),
                                 html.Button(
                                     "Show GS/GA",
                                     id="goals-toggle",
                                     n_clicks=0,
-                                    className="goals-toggle-btn",
+                                    className="text-btn",
                                 ),
                                 html.Button(
                                     "Hide names",
                                     id="flags-toggle",
                                     n_clicks=0,
-                                    className="goals-toggle-btn",
+                                    className="text-btn",
                                 ),
                             ],
-                            style={"display": "flex", "alignItems": "center", "gap": "16px"},
+                            className="footer-left",
                         ),
                         html.Div(
                             [
-                                dcc.Link(
-                                    DashIconify(icon="bi:envelope", width=14),
-                                    href="mailto:scott@stomlins.com",
-                                    target="_blank",
-                                    className="footer-icon",
-                                ),
-                                dcc.Link(
+                                html.A(
                                     DashIconify(icon="bi:linkedin", width=14),
                                     href="https://www.linkedin.com/in/scotttomlins/",
                                     target="_blank",
+                                    rel="noopener noreferrer me",
                                     className="footer-icon",
+                                    **{"aria-label": "LinkedIn"},
                                 ),
-                                dcc.Link(
+                                html.A(
+                                    DashIconify(icon="bi:envelope", width=14),
+                                    href="mailto:scott@stomlins.com",
+                                    className="footer-icon",
+                                    **{"aria-label": "Email"},
+                                ),
+                                html.A(
                                     DashIconify(icon="bi:github", width=14),
                                     href="https://github.com/satomlins/",
                                     target="_blank",
+                                    rel="noopener noreferrer me",
                                     className="footer-icon",
+                                    **{"aria-label": "GitHub"},
                                 ),
                             ],
-                            style={"display": "flex", "gap": "12px", "alignItems": "center"},
+                            className="footer-icons",
                         ),
                     ],
                     className="site-footer",
@@ -779,6 +708,7 @@ app.layout = html.Div(
         ),
     ],
     id="mainContainer",
+    className="page",
 )
 
 
@@ -947,7 +877,7 @@ def update_all(n, tz_offset_minutes, show_goals_data, show_flags_data, selected_
         group_children.append(
             html.Div(
                 [
-                    html.P(f"Group {g}", style=GROUP_LABEL),
+                    html.P(f"Group {g}", className="label label--sm"),
                     dash_table.DataTable(
                         data=gdf[g_cols].to_dict("records") if not gdf.empty else [],
                         columns=[{"name": c, "id": c} for c in g_cols],

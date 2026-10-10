@@ -104,18 +104,19 @@ Strict separation of concerns — each module has one job:
 - **Third-place standings**: computed from `compute_third_place_table(group_standings)` in callback; top 8 rows are normal weight, bottom 4 rows dimmed (opacity 0.6, `var(--text-faint)`) to indicate non-qualifiers
 - Owner identity: left-border stripe on name cell + full row text colour (leaderboard/teams); injected owner column coloured by owner (groups/fixtures); unknown teams (e.g. "Winner of Match X") show blank owner column
 - Eliminated teams: `color: var(--eliminated)` + `text-decoration: line-through` (no red)
-- Header strip: wordmark left, timezone label + "Last updated" stacked right; footer: copyright left, social icons right. On mobile (≤480px) the wordmark stacks into two centred lines (no `·` separator), and the footer stacks into a centred column so the GS/GA toggle and the copyright lines all centre horizontally.
+- Header strip: wordmark left, timezone label + "Last updated" stacked right; footer: the standard stomlins-design footer (copyright and the two toggles left; LinkedIn, email, GitHub icons right). Both use the core's classes (`.site-header`, `.wordmark`, `.header-meta`, `.site-footer`, `.footer-left`, `.footer-icons`, `.text-btn`), not inline styles. On mobile (≤480px) the wordmark stacks into two centred lines (no `·` separator), and the footer stacks into a centred column.
 - Group mini-tables: 2-column grid (2×6 layout), compact (12px font, 5px padding, fixed narrow numeric columns) — no horizontal scroll; drops to 1-column on mobile (≤480px)
 
-**`assets/s1.css`** — full design system (dark-only, greyscale palette):
-- CSS custom properties in `:root` for all colours, surfaces, borders, text
-- System font stack (no Google Fonts); `ui-monospace` for numeric columns
-- Tab navigation styles: `.tab-nav`, `.tab-link`, `.tab-link.active`
-- Page fade-in animation, responsive breakpoints at 768px / 480px. Mobile (≤480px) additionally stacks the header wordmark and footer copyright into centred two-line blocks (hiding their `·` separators) and reflows the footer to a centred column.
+**`assets/00-stomlins.css`** - the stomlins design system core, v0.1.0, vendored unchanged from `~/projects/stomlins-design/site/stomlins.css` (rules: `GUIDE.md` in that repo, reference: https://design.stomlins.com). Never edit it here: change it in `stomlins-design`, then re-copy. Dash loads `assets/` alphanumerically, so the `00-` prefix puts it before `s1.css`.
+- Provides the tokens in `:root`, reset, system font stack, links, `.page` container (on `#mainContainer`), header, footer, `.label` / `.label--sm` / `.note` (section headings, group labels, the third-place note), `.tab-nav` / `.tab-link`, the fade-in and the 768px / 480px responsive rules for all of those
+
+**`assets/s1.css`** - site-specific styles only, loaded after the core:
+- Site tokens `--eliminated` and `--live`; everything else comes from the core's tokens
+- Grid (`.row`, `.five/.six/.seven/.twelve.columns`), `.groups-grid`, and the Dash DataTable overrides (numeric columns use `var(--mono)`)
 - Card layout classes (all viewports): `.mobile-cards` wrapper; `.card-date-header`; `.match-card`; `.card-meta` (centred); `.card-matchup` (flex row) with `.card-matchup-home` (flex:1, right-align), `.card-matchup-score` (fixed centre), `.card-matchup-away` (flex:1, left-align); `.card-matchup .winner` (bold); `.card-owners` (flex row) with `.card-owner-home`, `.card-owner-sep`, `.card-owner-away`
 - DataTable rows and cells have no hover styling — Dash's bundled light-mode hover is neutralised in CSS, and our former dark-grey `--hover` rule has been removed. Hover affordances remain on tab nav, footer icons, GS/GA toggle button, and links — i.e. everything that is not a table
-- Mobile breakpoints also tighten `.tab-link` (font/padding) and add `overflow-x: auto` + scrollbar suppression on `.tab-nav` so the four-tab nav fits on phones
-- Dark-theme overrides for `dcc.Dropdown` (`.owner-filter` class) so the owner filter on the Results & Fixtures page matches the surrounding UI
+- At 480px `.tab-link` is tightened further than the core does (10px font) so the four-tab nav fits on phones; the core supplies the `overflow-x: auto` and scrollbar suppression on `.tab-nav`
+- Dark-theme overrides for `dcc.Dropdown` (`.owner-filter` class) so the owner filter on the Results & Fixtures page matches the surrounding UI; square corners and no shadow, per the design guide
 
 ## Participants and colours
 
