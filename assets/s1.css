@@ -33,9 +33,9 @@
   --Dash-Fill-Inverse-Strong:     var(--bg);
 }
 
-/* Control / trigger area */
-.owner-filter,
-.owner-filter .dash-dropdown-grid-container.dash-dropdown-trigger {
+/* Control: .owner-filter is the button and carries the one border.
+   The trigger span inside it fills the button and must not draw its own. */
+.owner-filter {
   background-color: var(--surface) !important;
   border: 1px solid var(--border) !important;
   border-radius: var(--radius) !important;
@@ -43,7 +43,14 @@
   box-shadow: none !important;
 }
 
-.owner-filter .dash-dropdown-grid-container.dash-dropdown-trigger:hover {
+.owner-filter .dash-dropdown-grid-container.dash-dropdown-trigger {
+  background-color: transparent !important;
+  border: 0 !important;
+  min-height: 34px !important;
+  box-shadow: none !important;
+}
+
+.owner-filter:hover {
   border-color: var(--text-muted) !important;
 }
 
