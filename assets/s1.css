@@ -1,130 +1,22 @@
 /* ============================================================
-   SWEEPSTAKELADS 2026 — Design System
-   Dark-only. Greyscale palette; owner colour as accent only.
+   SWEEPSTAKELADS 2026 - site stylesheet
+   Loaded after 00-stomlins.css (the stomlins design system core,
+   vendored unchanged). Tokens, reset, links, header, footer, tabs
+   and labels come from the core. This file holds only what is
+   specific to this site: Dash overrides, grids and match cards.
    ============================================================ */
 
 /* ------------------------------------------------------------
-   Design tokens
+   Site tokens (data colours; the greys are the core's)
    ------------------------------------------------------------ */
 :root {
-  --bg:            #0e0e0e;
-  --surface:       #161616;
-  --surface-2:     #1c1c1c;
-  --hover:         #202020;
-
-  --border:        #262626;
-  --border-strong: #333333;
-
-  --text:          #e8e8e8;
-  --text-muted:    #8a8a8a;
-  --text-faint:    #5a5a5a;
-
   --eliminated:    #5a5a5a;
   --live:          #e8e8e8;
-
-  --focus:         #6bc1d7;
-  --selection-bg:  rgba(255,255,255,0.12);
 }
 
 /* ------------------------------------------------------------
-   Reset / base
+   Owner filter (dcc.Dropdown, Dash 4.x)
    ------------------------------------------------------------ */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
-html {
-  font-size: 100%;
-}
-
-body {
-  margin: 0;
-  padding: 0;
-  background-color: var(--bg);
-  color: var(--text);
-  font-size: 13px;
-  line-height: 1.5;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Ubuntu, Cantarell,
-    Roboto, Helvetica, Arial, "Noto Sans", sans-serif,
-    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-::selection {
-  background: var(--selection-bg);
-  color: var(--text);
-}
-
-/* ------------------------------------------------------------
-   Page structure
-   ------------------------------------------------------------ */
-#mainContainer {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 48px 32px 96px;
-}
-
-main {
-  animation: fadeIn 400ms ease-out both;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: none; }
-}
-
-/* ------------------------------------------------------------
-   Header
-   ------------------------------------------------------------ */
-.site-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 64px;
-}
-
-/* ------------------------------------------------------------
-   Footer
-   ------------------------------------------------------------ */
-.site-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 24px;
-  border-top: 1px solid var(--border);
-  margin-top: 64px;
-}
-
-.footer-icon {
-  color: var(--text-muted);
-  transition: color 120ms;
-  line-height: 0;
-}
-
-.footer-icon:hover {
-  color: var(--text);
-}
-
-.goals-toggle-btn {
-  background: none;
-  border: none;
-  color: var(--text-faint);
-  font-size: 11px;
-  font-family: inherit;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  padding: 0;
-  transition: color 120ms;
-}
-
-.goals-toggle-btn:hover {
-  color: var(--text-muted);
-}
-
-/* ── Owner filter (dcc.Dropdown, Dash 4.x) ───────────────────────────────── */
 
 /* Remap Dash's CSS variables at the wrapper so they cascade everywhere
    (checkboxes, focus rings, separators, text) without element-by-element overrides */
@@ -137,7 +29,7 @@ main {
   --Dash-Stroke-Strong:           var(--border);
   --Dash-Text-Strong:             var(--text);
   --Dash-Text-Weak:               var(--text-muted);
-  --Dash-Text-Disabled:           var(--text-faint);
+  --Dash-Text-Disabled:           var(--text-muted);
   --Dash-Fill-Inverse-Strong:     var(--bg);
 }
 
@@ -146,27 +38,28 @@ main {
 .owner-filter .dash-dropdown-grid-container.dash-dropdown-trigger {
   background-color: var(--surface) !important;
   border: 1px solid var(--border) !important;
-  border-radius: 4px !important;
+  border-radius: var(--radius) !important;
   min-height: 36px !important;
   box-shadow: none !important;
 }
 
 .owner-filter .dash-dropdown-grid-container.dash-dropdown-trigger:hover {
-  border-color: var(--text-faint) !important;
+  border-color: var(--text-muted) !important;
 }
 
 /* Placeholder, value, chips */
-.owner-filter .dash-dropdown-placeholder { color: var(--text-faint) !important; font-size: 13px !important; }
-.owner-filter .dash-dropdown-value       { color: var(--text) !important; font-size: 13px !important; }
-.owner-filter .dash-dropdown-value-item  { background-color: var(--surface-2) !important; border: 1px solid var(--border) !important; color: var(--text) !important; border-radius: 3px !important; font-size: 12px !important; }
+.owner-filter .dash-dropdown-placeholder { color: var(--text-muted) !important; font-size: var(--text-base) !important; }
+.owner-filter .dash-dropdown-value       { color: var(--text) !important; font-size: var(--text-base) !important; }
+.owner-filter .dash-dropdown-value-item  { background-color: var(--surface-2) !important; border: 1px solid var(--border) !important; color: var(--text) !important; border-radius: var(--radius) !important; font-size: var(--text-sm) !important; }
 .owner-filter .dash-dropdown-clear,
-.owner-filter .dash-dropdown-trigger-icon { color: var(--text-faint) !important; }
+.owner-filter .dash-dropdown-trigger-icon { color: var(--text-muted) !important; }
 
-/* Dropdown panel — sibling of #owner-filter inside dash-dropdown-wrapper (Radix portal) */
+/* Dropdown panel: sibling of #owner-filter inside dash-dropdown-wrapper (Radix portal) */
 .dash-dropdown-wrapper:has(#owner-filter) .dash-dropdown-content {
   background-color: var(--surface) !important;
   border: 1px solid var(--border) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: none !important;
 }
 
 .dash-dropdown-wrapper:has(#owner-filter) .dash-dropdown-search-container {
@@ -193,54 +86,7 @@ main {
 }
 
 /* ------------------------------------------------------------
-   Tab navigation
-   ------------------------------------------------------------ */
-.tab-nav {
-  display: flex;
-  gap: 0;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 48px;
-}
-
-.tab-link {
-  display: inline-block;
-  padding: 12px 20px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  transition: color 120ms;
-  text-decoration: none;
-}
-
-.tab-link:hover,
-.tab-link:visited:hover {
-  color: var(--text-muted);
-  text-decoration: none;
-}
-
-.tab-link:visited {
-  color: var(--text-faint);
-}
-
-.tab-link.active,
-.tab-link.active:visited {
-  color: var(--text);
-  border-bottom-color: var(--text);
-}
-
-/* ------------------------------------------------------------
-   Section spacing
-   ------------------------------------------------------------ */
-.section-gap {
-  margin-top: 64px;
-}
-
-/* ------------------------------------------------------------
-   Grid — two-column rows
+   Grid - two-column rows
    ------------------------------------------------------------ */
 .row {
   display: flex;
@@ -271,7 +117,7 @@ main {
 }
 
 /* ------------------------------------------------------------
-   Tables — Dash DataTable overrides
+   Tables - Dash DataTable overrides
    ------------------------------------------------------------ */
 
 /* Container background */
@@ -303,12 +149,12 @@ main {
   border-bottom: none !important;
 }
 
-/* Sort-icon reset — hide the default arrows */
+/* Sort-icon reset: hide the default arrows */
 .dash-table-container .column-header--sort .sort-arrow {
   display: none !important;
 }
 
-/* Numeric columns — monospace tabular figures */
+/* Numeric columns: monospace tabular figures */
 .dash-table-container .column-PL,
 .dash-table-container .column-W,
 .dash-table-container .column-D,
@@ -318,79 +164,13 @@ main {
 .dash-table-container .column-GD,
 .dash-table-container .column-PTS,
 .dash-table-container .column-Score {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace !important;
+  font-family: var(--mono) !important;
   font-variant-numeric: tabular-nums;
   text-align: right !important;
 }
 
-/* Focus ring */
-.dash-table-container *:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
-
 /* ------------------------------------------------------------
-   Links
-   ------------------------------------------------------------ */
-a {
-  color: var(--text-muted);
-  text-decoration: none;
-  transition: color 120ms;
-}
-
-a:hover, a:active {
-  color: var(--text);
-  text-decoration: none;
-}
-
-a:visited {
-  color: var(--text-muted);
-}
-
-/* ------------------------------------------------------------
-   Responsive — 768px
-   ------------------------------------------------------------ */
-@media screen and (max-width: 768px) {
-  #mainContainer {
-    padding: 24px 16px 64px;
-  }
-
-  .site-header {
-    flex-direction: column;
-    gap: 6px;
-    align-items: stretch;
-  }
-
-  .header-wordmark {
-    text-align: center;
-  }
-
-  .header-meta {
-    align-self: flex-end;
-  }
-
-  .row {
-    flex-direction: column;
-    gap: 48px;
-  }
-
-  .five.columns,
-  .six.columns,
-  .seven.columns {
-    flex: none;
-    width: 100%;
-  }
-
-  .tab-link {
-    padding: 10px 12px;
-    font-size: 11px;
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-  }
-}
-
-/* ------------------------------------------------------------
-   Card layout — fixture/result tables (all viewports)
+   Card layout - fixture/result lists (all viewports)
    ------------------------------------------------------------ */
 .card-date-header {
   font-size: 14px;
@@ -417,7 +197,7 @@ a:visited {
 
 .card-meta {
   font-size: 13px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   margin-bottom: 4px;
   text-align: center;
 }
@@ -468,25 +248,36 @@ a:visited {
 
 .card-owner-sep {
   padding: 0 8px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
+/* ------------------------------------------------------------
+   Responsive - 768px
+   ------------------------------------------------------------ */
+@media screen and (max-width: 768px) {
+  .row {
+    flex-direction: column;
+    gap: 48px;
+  }
+
+  .five.columns,
+  .six.columns,
+  .seven.columns {
+    flex: none;
+    width: 100%;
+  }
+}
+
+/* ------------------------------------------------------------
+   Responsive - 480px
+   ------------------------------------------------------------ */
 @media screen and (max-width: 480px) {
   .groups-grid {
     grid-template-columns: 1fr;
   }
 
-  .tab-nav {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-
-  .tab-nav::-webkit-scrollbar {
-    display: none;
-  }
-
+  /* Four tabs have to fit a phone: tighter than the core's 768px step */
   .tab-link {
     padding: 10px 10px;
     font-size: 10px;
@@ -495,44 +286,5 @@ a:visited {
 
   .owner-filter-wrap {
     max-width: 100% !important;
-  }
-
-  .header-wordmark {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-  }
-
-  .wordmark-sep {
-    display: none;
-  }
-
-  .wordmark-tagline {
-    margin-left: 0;
-  }
-
-  .site-footer {
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .footer-copyright {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    text-align: center;
-  }
-
-  .footer-copy-sep {
-    display: none;
-  }
-
-  .site-footer > div:first-child {
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
   }
 }

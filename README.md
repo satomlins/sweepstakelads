@@ -59,4 +59,5 @@ for the original setup.
 | `tournament.py` | Orchestration, caching, background refresh |
 | `scoring.py` | Pure scoring functions — no I/O |
 | `scraper.py` | Wikipedia fetch and parse |
-| `assets/s1.css` | Stylesheet |
+| `assets/00-stomlins.css` | Shared design system core (vendored from `stomlins-design`, do not edit) |
+| `assets/s1.css` | Site-specific styles |
