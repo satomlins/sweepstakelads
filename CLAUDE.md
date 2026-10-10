@@ -168,27 +168,37 @@ COLOURS = {
 - Host: Oracle Cloud always-free tier, URL: `sweepstakelads.stomlins.com`
 - TLS + DNS via Cloudflare — tunnel UUID `dcd0bf6e-e2f4-4e36-9c2a-3f7d1b2566d7`, config at `/etc/cloudflared/config.yml`
 - App directory: `/home/opc/sweepstakelads` (tracking `main` branch of `github.com/satomlins/sweepstakelads`)
-- Systemd unit: `sweepstakelads.service` — `ExecStart=/usr/local/bin/uv run gunicorn app:server --bind 127.0.0.1:8050 --workers 1`
+- Systemd unit: `sweepstakelads.service`, installed from `deploy/sweepstakelads.service` to `/etc/systemd/system/` by `host/install`. `ExecStart=/usr/local/bin/uv run gunicorn app:server --bind 127.0.0.1:8050 --workers 1`. The unit file in the repo is the source of truth; do not edit the installed copy.
 - Env file: `/etc/sysconfig/sweepstakelads` (currently empty; kept for future secrets)
 
-### Steady-state update workflow
+### How a change reaches production
 
-Push to `main` triggers auto-deploy via GitHub Actions (`.github/workflows/deploy.yml`):
-1. Tests run (`uv run pytest -q`)
-2. On success, SSH into Oracle via deploy key and run `scripts/deploy.sh`
-3. `deploy.sh` pulls `main`, runs `uv sync --frozen`, restarts the service, and smoke-tests it
+> **DEPLOY = merge to `main`.** The host polls GitHub every 3 minutes, checks out the new `main` and runs `host/install`; the result lands on ntfy topic `stomlins-oracle`.
+>
+> Production runs whatever `main` is. Never deploy from another branch. Because merging deploys, only merge when the user says so.
 
-Manual deploy (fallback):
+By the host-wide rule "main is what's deployed" (design: `GITOPS.md` in `stomlins-oracle`). On the rule since 2026-10-10 (`sweepstakelads /home/opc/sweepstakelads` in `host/gitops-repos` in `stomlins-oracle`). `gitops-pull.timer` sees `main` move, checks out that commit (a detached `HEAD`) and runs `host/install` as root.
+
+`host/install` is everything project-specific. Each run it:
+
+1. Validates before changing anything: required files and the env file exist, `systemd-analyze verify` passes on the unit, and **the test suite passes** from a synced venv (`uv run --frozen pytest -q`). A commit that fails its tests is reported as a failed deploy and never replaces the running process.
+2. Installs `deploy/sweepstakelads.service` if it differs.
+3. Restarts the service only when what it has loaded changed (any top-level `.py`, `assets/*.css`, `assets/*.js`, the draw and participants CSVs, `pyproject.toml`, `uv.lock` or the unit; hash kept in `/var/lib/sweepstakelads/running.sha256`). The cache files the app writes into `assets/` do not count.
+4. Fails unless `http://127.0.0.1:8050/` answers 200.
+
+When a deploy fails, the ntfy carries the last 20 lines of installer output, and that commit is not retried until `main` moves again or someone runs it by hand.
 
 ```bash
-ssh stomlins-oracle
-cd /home/opc/sweepstakelads
-git pull
-sudo systemctl restart sweepstakelads
-# If pyproject.toml changed: uv sync  (before the restart)
+# On the host. Use the full path: sudo's secure_path omits /usr/local/bin.
+sudo /usr/local/bin/gitops-pull status                # deployed SHA, main SHA, held/failed
+sudo /usr/local/bin/gitops-pull run sweepstakelads    # deploy now, or retry a failed commit
 ```
 
-Rollback: `git reset --hard <previous-sha>` on Oracle + `sudo systemctl restart sweepstakelads`. See `docs/DEPLOY_PLAN.md` for full instructions.
+Rollback: revert the commit on `main` (the poll deploys the revert). To pin the host to something else meanwhile, `gitops-pull hold sweepstakelads <reason>`.
+
+### The old GitHub Actions path (still active, to be retired)
+
+Until it is retired, a push to `main` also runs `.github/workflows/deploy.yml`: tests, then SSH through `deploy.stomlins.com` (Cloudflare Access service token) with a forced-command key that runs `scripts/deploy.sh` (`git reset --hard origin/main`, `uv sync --frozen`, restart, local smoke test). Both paths end at the same commit, so the only cost of the overlap is a second restart. Do not remove `scripts/deploy.sh` while the forced-command key is still in `authorized_keys`: the key runs that path. Retirement (the workflow, the key, the sudoers rule, the `deploy.stomlins.com` ingress and its Access token) is tracked in `GITOPS.md` in `stomlins-oracle`. `.github/workflows/test.yml` stays either way.
 
 ### Hard constraints (Oracle)
 

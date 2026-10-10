@@ -130,6 +130,8 @@ Open the URL in a browser and confirm the dashboard renders with the pre-draw "T
 
 ## Auto-deploy setup (Phase 4)
 
+> **Superseded 2026-10-10.** The project now deploys by the host's gitops rule: merge to `main`, and the host runs `host/install` within 3 minutes. See "How a change reaches production" in `CLAUDE.md`. The GitHub Actions path described below is still installed and still runs on every push to `main` until it is retired; this section is kept as the record of what has to be removed (the workflow, the forced-command key, the sudoers rule, the GitHub secrets).
+
 Push to `main` triggers `.github/workflows/deploy.yml`: tests run, then on success SSH into Oracle and run `scripts/deploy.sh` via a forced command. The deploy script pulls the latest `main`, runs `uv sync --frozen`, restarts the service, and smoke-tests it locally.
 
 ### One-time local setup

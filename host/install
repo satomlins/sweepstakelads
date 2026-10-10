@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# Install this checkout's systemd unit onto the host and restart the app when the
+# running code changed. Run as root from the clone at /home/opc/sweepstakelads by
+# gitops-pull whenever origin/main moves (the contract is in
+# ../stomlins-oracle/GITOPS.md). Idempotent.
+#
+# The test suite is the gate: it runs here, before anything is installed or restarted,
+# so a commit that fails its tests never replaces the running process.
+set -euo pipefail
+
+[ "$(id -u)" = 0 ] || { echo "run as root" >&2; exit 1; }
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+UNIT=sweepstakelads.service
+UNIT_SRC="$REPO/deploy/$UNIT"
+UNIT_DEST="/etc/systemd/system/$UNIT"
+ENV_FILE=/etc/sysconfig/sweepstakelads
+STATE_DIR=/var/lib/sweepstakelads
+STAMP="$STATE_DIR/running.sha256"
+URL=http://127.0.0.1:8050/
+
+# uv and the venv belong to opc, same as the unit's User=
+as_opc() { setpriv --reuid opc --regid opc --init-groups env HOME=/home/opc "$@"; }
+
+# Hash of everything the running process has loaded: a change here needs a restart.
+# From assets/ that is the stylesheets and scripts (Dash indexes them at start) and the
+# draw. The cache files the app rewrites there every few minutes are left out.
+code_hash() {
+  { find "$REPO" -maxdepth 1 -name '*.py' -print0 | LC_ALL=C sort -z | xargs -0 sha256sum
+    find "$REPO/assets" -maxdepth 1 \( -name '*.css' -o -name '*.js' \) -print0 |
+      LC_ALL=C sort -z | xargs -0 sha256sum
+    sha256sum "$REPO/assets/draw_2026.csv" "$REPO/assets/participants.csv" \
+      "$REPO/pyproject.toml" "$REPO/uv.lock" "$UNIT_SRC"
+  } | sha256sum | cut -d' ' -f1
+}
+
+# Validate before touching anything: the files are there, the unit is well formed and
+# the tests pass from a synced venv (the running process is unaffected by the sync).
+# The tests import app.py and mock the network, so nothing is fetched or cached.
+cd "$REPO"
+for f in deploy/$UNIT app.py tournament.py assets/draw_2026.csv assets/participants.csv \
+         pyproject.toml uv.lock; do
+  [ -f "$REPO/$f" ] || { echo "$f is missing, nothing installed" >&2; exit 1; }
+done
+# Not in git (first-time setup): the unit names it, so it cannot start without it
+[ -f "$ENV_FILE" ] || { echo "$ENV_FILE is missing, nothing installed" >&2; exit 1; }
+systemd-analyze verify "$UNIT_SRC" || { echo "deploy/$UNIT is invalid, nothing installed" >&2; exit 1; }
+as_opc /usr/local/bin/uv run --frozen pytest -q -p no:cacheprovider ||
+  { echo "uv sync or tests failed, nothing installed" >&2; exit 1; }
+
+if ! cmp -s "$UNIT_SRC" "$UNIT_DEST"; then
+  install -m 0644 -o root -g root "$UNIT_SRC" "$UNIT_DEST"
+  restorecon "$UNIT_DEST"
+  systemctl daemon-reload
+  echo "updated $UNIT_DEST"
+fi
+systemctl is-enabled -q "$UNIT" || { systemctl enable -q "$UNIT"; echo "enabled $UNIT"; }
+
+want="$(code_hash)"
+if [ "$want" != "$(cat "$STAMP" 2>/dev/null || true)" ] || ! systemctl is-active -q "$UNIT"; then
+  systemctl restart "$UNIT"
+  echo "restarted $UNIT"
+fi
+
+# Every run ends by proving the app serves
+ok=0
+for _ in $(seq 1 60); do
+  if curl -fs -o /dev/null --max-time 2 "$URL"; then ok=1; break; fi
+  sleep 0.5
+done
+if [ "$ok" = 0 ]; then
+  journalctl -u "$UNIT" -n 10 --no-pager >&2 || true
+  echo "$URL did not answer 200 after install" >&2; exit 1
+fi
+
+# Only once it serves, so a failed restart is retried on the next run
+mkdir -p "$STATE_DIR"
+echo "$want" > "$STATE_DIR/.running.tmp" && mv "$STATE_DIR/.running.tmp" "$STAMP"
+# No git here: root in an opc-owned checkout trips git's "dubious ownership" check
+echo "installed from $REPO"
