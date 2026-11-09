@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Project knowledge (purpose, participants' story, status, decisions, deployment plan, host and Cloudflare facts, history, to-dos) lives in the brain: `notes/projects/sweepstakelads.md` in `satomlins/the-brain` (`~/projects/the-brain` on the Mac, `~/the-brain` on the brain VM). This file holds code facts only.
+
 ## What this is
 
 A Plotly Dash web app tracking a 2026 FIFA World Cup sweepstake. It scrapes live match data from Wikipedia, computes standings, and displays them in a dark, greyscale dashboard.
@@ -114,7 +116,7 @@ Strict separation of concerns — each module has one job:
 - Site tokens `--eliminated` and `--live`; everything else comes from the core's tokens
 - Grid (`.row`, `.five/.six/.seven/.twelve.columns`), `.groups-grid`, and the Dash DataTable overrides (numeric columns use `var(--mono)`)
 - Card layout classes (all viewports): `.mobile-cards` wrapper; `.card-date-header`; `.match-card`; `.card-meta` (centred); `.card-matchup` (flex row) with `.card-matchup-home` (flex:1, right-align), `.card-matchup-score` (fixed centre), `.card-matchup-away` (flex:1, left-align); `.card-matchup .winner` (bold); `.card-owners` (flex row) with `.card-owner-home`, `.card-owner-sep`, `.card-owner-away`
-- DataTable rows and cells have no hover styling — Dash's bundled light-mode hover is neutralised in CSS, and our former dark-grey `--hover` rule has been removed. Hover affordances remain on tab nav, footer icons, GS/GA toggle button, and links — i.e. everything that is not a table
+- DataTable rows and cells have no hover styling — Dash's bundled light-mode hover is neutralised in CSS, and our former dark-grey `--hover` rule has been removed. Dash puts the hover background on the `tr`, not the `td`, so the override must target `tr:hover` with `transparent !important` (`inherit` on `td` keeps the hover): `.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner :not(.cell--selected) tr:hover { background-color: transparent !important; }`. Hover affordances remain on tab nav, footer icons, GS/GA toggle button, and links — i.e. everything that is not a table
 - At 480px `.tab-link` is tightened further than the core does (10px font) so the four-tab nav fits on phones; the core supplies the `overflow-x: auto` and scrollbar suppression on `.tab-nav`
 - Dark-theme overrides for `dcc.Dropdown` (`.owner-filter` class) so the owner filter on the Results & Fixtures page matches the surrounding UI; square corners and no shadow, per the design guide
 
@@ -126,7 +128,8 @@ Owner colours appear in three ways:
 - **Leaderboard / team table**: entire row text in owner colour; left-border accent stripe on the name cell
 - **Groups**: `Who` column injected next to `Team`, both cells coloured by owner; left-border stripe on Team cell
 - **Fixtures / knockout**: `HomeOwner` and `AwayOwner` columns injected (blank header) next to each team name, coloured by owner; left-border stripe on team name cell
-- Never full cell backgrounds; colours are pastels for contrast on dark bg
+- Never full cell backgrounds; colours are pastels for contrast on dark bg (if the old style is ever asked for, the fallback is an 8% alpha row tint, never full opacity)
+- Never set `hidden_columns` on a DataTable: it adds Dash's "toggle columns" button, which Scott finds jarring. To hide a column that filter queries still need (for example `In`), leave it out of the `columns` list; filter queries work on the data records regardless.
 - The `FLAGS` dict in `app.py` maps team names to flag emojis for the footer toggle. Keys are the values emitted by `scraper._code_to_name` (e.g. `"Bosnia and Herzegovina"`, `"Curaçao"`). Missing entries fall through to the original name. UK home nations use subdivision flag sequences (`🏴…`) that render on macOS/iOS only; Northern Ireland has no subdivision flag and uses `"🇬🇧"`.
 
 Owner colour map (pastels):
@@ -166,11 +169,11 @@ COLOURS = {
 
 ## Deployment
 
-- Host: Oracle Cloud always-free tier, URL: `sweepstakelads.stomlins.com`
-- TLS + DNS via Cloudflare — tunnel UUID `dcd0bf6e-e2f4-4e36-9c2a-3f7d1b2566d7`, config at `/etc/cloudflared/config.yml`
-- App directory: `/home/opc/sweepstakelads` (tracking `main` branch of `github.com/satomlins/sweepstakelads`)
-- Systemd unit: `sweepstakelads.service`, installed from `deploy/sweepstakelads.service` to `/etc/systemd/system/` by `host/install`. `ExecStart=/usr/local/bin/uv run gunicorn app:server --bind 127.0.0.1:8050 --workers 1`. The unit file in the repo is the source of truth; do not edit the installed copy.
-- Env file: `/etc/sysconfig/sweepstakelads` (currently empty; kept for future secrets)
+The deployment plan, host, tunnel and history are in the brain note (Deploy). Code facts:
+
+- Production checkout `/home/opc/sweepstakelads` on the Oracle host, public at `sweepstakelads.stomlins.com` through cloudflared.
+- Systemd unit: `sweepstakelads.service`, installed from `deploy/sweepstakelads.service` by `host/install`. `ExecStart=/usr/local/bin/uv run gunicorn app:server --bind 127.0.0.1:8050 --workers 1`. The unit file in the repo is the source of truth; do not edit the installed copy.
+- Env file: `/etc/sysconfig/sweepstakelads` (empty; kept for future secrets).
 
 ### How a change reaches production
 
@@ -178,7 +181,7 @@ COLOURS = {
 >
 > Production runs whatever `main` is. Never deploy from another branch. Because merging deploys, only merge when the user says so.
 
-By the host-wide rule "main is what's deployed" (design: `GITOPS.md` in `stomlins-oracle`). On the rule since 2026-10-10 (`sweepstakelads /home/opc/sweepstakelads` in `host/gitops-repos` in `stomlins-oracle`). `gitops-pull.timer` sees `main` move, checks out that commit (a detached `HEAD`) and runs `host/install` as root.
+By the host-wide rule "main is what's deployed" (design: `GITOPS.md` in `stomlins-oracle`). `gitops-pull.timer` sees `main` move, checks out that commit (a detached `HEAD`) and runs `host/install` as root.
 
 `host/install` is everything project-specific. Each run it:
 
@@ -197,9 +200,9 @@ sudo /usr/local/bin/gitops-pull run sweepstakelads    # deploy now, or retry a f
 
 Rollback: revert the commit on `main` (the poll deploys the revert). To pin the host to something else meanwhile, `gitops-pull hold sweepstakelads <reason>`.
 
-### The old GitHub Actions path (retired 2026-10-10)
+### No CI deploy
 
-Until 2026-10-10 a push to `main` ran `.github/workflows/deploy.yml`, which SSHed through `deploy.stomlins.com` with a forced-command key and ran `scripts/deploy.sh`. All of it is gone: the workflow, the script, the key in `authorized_keys`, the sudoers rule, the Actions secrets and the `deploy.stomlins.com` ingress. There is no CI deploy and nothing to SSH into. `.github/workflows/test.yml` still runs the tests on every push and PR; the tests that gate a deploy are the ones `host/install` runs on the host.
+There is no CI deploy and nothing to SSH into (the old GitHub Actions deploy was retired 2026-10-10; history in the brain note). `.github/workflows/test.yml` runs the tests on every push and PR; the tests that gate a deploy are the ones `host/install` runs on the host.
 
 ### Hard constraints (Oracle)
 
